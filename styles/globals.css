@@ -1,0 +1,23 @@
+@import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;600;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Klee+One:wght@400;600&display=swap');
+
+:root {
+  --bg: #F2ECDA;
+  --surface: #FBF7EC;
+  --ink: #241F1A;
+  --ink-soft: #5C564C;
+  --ink-faint: #9C927E;
+  --indigo: #2B4570;
+  --vermilion: #B7410E;
+  --vermilion-deep: #8F2A25;
+  --vermilion-tint: #F5E7DD;
+  --moss: #3F6B4F;
+  --moss-tint: #E9EFE9;
+  --hairline: #D9CFB4;
+  --star: #F4C430;
+  --r: 3px;
+  --shadow: 0 2px 0 rgba(36,31,26,0.10);
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: 'Klee One', sans-serif; }
+input, button, textarea { font-family: inherit; }
