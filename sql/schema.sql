@@ -82,6 +82,9 @@ create policy "教員は自分が発行した学生を見る" on profiles for se
 drop policy if exists "本人はプロフィールを更新できる" on profiles;
 create policy "本人はプロフィールを更新できる" on profiles for update
   using (id = auth.uid());
+drop policy if exists "教員は自分のプロフィールを作成できる" on profiles;
+create policy "教員は自分のプロフィールを作成できる" on profiles for insert
+  with check (id = auth.uid() and role = 'teacher');
 
 -- classes: 教員は自分のクラスのみ操作可能
 drop policy if exists "教員は自分のクラスを見る" on classes;
