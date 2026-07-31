@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo, useEffect } from "react";
 import Papa from "papaparse";
-import * as tf from "@tensorflow/tfjs";
+import * as tf from "tensorflow";
 import {
   BookOpen, ListChecks, Type, PenLine, Upload, Shuffle,
   RotateCcw, Check, X, ChevronRight, ChevronLeft, Download,
@@ -419,7 +419,7 @@ function LevelSelect({ modeKey, fullList, favSet, idOf, minRequired, onSelect, o
   );
 }
 
-function FlashcardMode({ vocab, level, lang, cardMode, favVocab, onToggleFav, onCardAdvance, onExit }) {
+function FlashcardMode({ vocab, level, lang, cardMode, favVocab, onToggleFav, onExit }) {
   const [order, setOrder] = useState(() => vocab.map((_, i) => i));
   const [pos, setPos] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -429,8 +429,7 @@ function FlashcardMode({ vocab, level, lang, cardMode, favVocab, onToggleFav, on
   const isFav = favVocab.has(current.word);
   const meaningText = lang === "en" ? (current.meaningEn || current.meaning) : current.meaning;
 
-  // 「次へ」でカードを1枚進めるたびに1回とカウントする（学習回数の定義）
-  const next = () => { setFlipped(false); setPos((p) => (p + 1) % order.length); if (onCardAdvance) onCardAdvance(); };
+  const next = () => { setFlipped(false); setPos((p) => (p + 1) % order.length); };
   const prev = () => { setFlipped(false); setPos((p) => (p - 1 + order.length) % order.length); };
   const doShuffle = () => { setOrder(shuffle(vocab.map((_, i) => i))); setPos(0); setFlipped(false); };
 
@@ -485,14 +484,14 @@ function FlashcardMode({ vocab, level, lang, cardMode, favVocab, onToggleFav, on
   );
 }
 
-function Vocab4Mode({ vocab, level, lang, favVocab, onToggleFav, onAnswer, onExit }) {
+function Vocab4Mode({ vocab, level, lang, favVocab, onToggleFav, onExit }) {
   const title = `${MODE_TITLES.vocab4}（${level}）`;
   const buildQuestions = () =>
     shuffle(vocab).map((v) => {
       const distractors = shuffle(vocab.filter((x) => x.word !== v.word)).slice(0, 3).map((x) => x.word);
       const options = shuffle([v.word, ...distractors]);
       const meaningText = lang === "en" ? (v.meaningEn || v.meaning) : v.meaning;
-      return { id: v.id || v.word, q: meaningText, answer: v.word, options };
+      return { q: meaningText, answer: v.word, options };
     });
 
   const [questions, setQuestions] = useState(buildQuestions);
@@ -506,9 +505,7 @@ function Vocab4Mode({ vocab, level, lang, favVocab, onToggleFav, onAnswer, onExi
   const choose = (opt) => {
     if (selected) return;
     setSelected(opt);
-    const correct = opt === current.answer;
-    if (correct) setScore((s) => s + 1);
-    if (onAnswer) onAnswer(current.id, "vocab4", correct);
+    if (opt === current.answer) setScore((s) => s + 1);
   };
   const next = () => { setSelected(null); setIdx((i) => i + 1); };
   const restart = () => { setIdx(0); setSelected(null); setScore(0); };
@@ -521,7 +518,6 @@ function Vocab4Mode({ vocab, level, lang, favVocab, onToggleFav, onAnswer, onExi
         <ResultCard score={score} total={questions.length} onRestart={restart} onExit={onExit} />
       </div>
     );
-
   }
 
   return (
@@ -564,7 +560,7 @@ function Vocab4Mode({ vocab, level, lang, favVocab, onToggleFav, onAnswer, onExi
   );
 }
 
-function KanjiInputMode({ vocab, level, favVocab, onToggleFav, onAnswer, onExit }) {
+function KanjiInputMode({ vocab, level, favVocab, onToggleFav, onExit }) {
   const title = `${MODE_TITLES.kanji}（${level}）`;
   const [questions, setQuestions] = useState(() => shuffle(vocab));
   const [idx, setIdx] = useState(0);
@@ -583,7 +579,6 @@ function KanjiInputMode({ vocab, level, favVocab, onToggleFav, onAnswer, onExit 
     setCorrect(ok);
     setChecked(true);
     if (ok) setScore((s) => s + 1);
-    if (onAnswer) onAnswer(current.id || current.word, "kanji", ok);
   };
   const next = () => {
     setInput("");
@@ -655,7 +650,7 @@ function KanjiInputMode({ vocab, level, favVocab, onToggleFav, onAnswer, onExit 
   );
 }
 
-function GrammarMode({ grammar, level, favGrammar, onToggleFav, onAnswer, onExit }) {
+function GrammarMode({ grammar, level, favGrammar, onToggleFav, onExit }) {
   const title = `${MODE_TITLES.grammar4}（${level}）`;
   const [questions, setQuestions] = useState(() => shuffle(grammar));
   const [idx, setIdx] = useState(0);
@@ -668,9 +663,7 @@ function GrammarMode({ grammar, level, favGrammar, onToggleFav, onAnswer, onExit
   const choose = (i) => {
     if (selected !== null) return;
     setSelected(i);
-    const correct = i === current.answer;
-    if (correct) setScore((s) => s + 1);
-    if (onAnswer) onAnswer(current.id || current.blank, "grammar4", correct);
+    if (i === current.answer) setScore((s) => s + 1);
   };
   const next = () => { setSelected(null); setIdx((i) => i + 1); };
   const restart = () => { setIdx(0); setSelected(null); setScore(0); };
@@ -730,7 +723,7 @@ function GrammarMode({ grammar, level, favGrammar, onToggleFav, onAnswer, onExit
   );
 }
 
-function KakitoriMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
+function KakitoriMode({ list, level, favSet, onToggleFav, onExit }) {
   const title = `${MODE_TITLES.kakitori}（${level}）`;
   const [questions, setQuestions] = useState(() => shuffle(list));
   const [idx, setIdx] = useState(0);
@@ -782,9 +775,7 @@ function KakitoriMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
   const choose = (char) => {
     if (picked) return;
     setPicked(char);
-    const correct = char === current.char;
-    if (correct) setScore((s) => s + 1);
-    if (onAnswer) onAnswer(current.id || current.char, "kakitori", correct);
+    if (char === current.char) setScore((s) => s + 1);
   };
   const next = () => setIdx((i) => i + 1);
   const doShuffle = () => { setQuestions(shuffle(list)); setIdx(0); setScore(0); };
@@ -936,22 +927,10 @@ function ImportPanel({ onImport, onExit }) {
   );
 }
 
-const MODE_KEYS = Object.keys(MODE_TITLES);
-
-export default function App({
-  initialVocab,
-  initialGrammar,
-  initialKakitori,
-  studentName,
-  onAnswer,
-  onSessionEnd,
-  onLogout,
-  myPageHref,
-  allowLocalImport = true,
-} = {}) {
-  const [vocabList, setVocabList] = useState(initialVocab && initialVocab.length ? initialVocab : SAMPLE_VOCAB);
-  const [grammarList, setGrammarList] = useState(initialGrammar && initialGrammar.length ? initialGrammar : SAMPLE_GRAMMAR);
-  const [kakitoriList] = useState(initialKakitori && initialKakitori.length ? initialKakitori : KAKITORI_DATA);
+export default function App() {
+  const [vocabList, setVocabList] = useState(SAMPLE_VOCAB);
+  const [grammarList, setGrammarList] = useState(SAMPLE_GRAMMAR);
+  const [kakitoriList] = useState(KAKITORI_DATA);
   const [screen, setScreen] = useState("home");
   const [pendingMode, setPendingMode] = useState(null);
   const [selectedLevel, setSelectedLevel] = useState(null);
@@ -960,38 +939,6 @@ export default function App({
   const [favVocab, setFavVocab] = useState(() => new Set());
   const [favGrammar, setFavGrammar] = useState(() => new Set());
   const [favKakitori, setFavKakitori] = useState(() => new Set());
-
-  // 「学習回数」のカウンター。③④⑤⑥は1問答えるたびに、①②はカードを1枚進めるたびに+1する。
-  // モード・レベルの画面を開いている間の経過時間とあわせて、画面を離れるタイミングでonSessionEndに渡す。
-  const reviewCountRef = useRef(0);
-  const sessionStartRef = useRef(null);
-  const bumpReviewCount = () => { reviewCountRef.current += 1; };
-
-  useEffect(() => {
-    const isModeScreen = MODE_KEYS.includes(screen);
-    if (isModeScreen) {
-      sessionStartRef.current = Date.now();
-      reviewCountRef.current = 0;
-    }
-    return () => {
-      if (isModeScreen && sessionStartRef.current) {
-        const durationSeconds = Math.round((Date.now() - sessionStartRef.current) / 1000);
-        // 数秒未満（誤操作でモードを開いてすぐ閉じた等）は記録しないようにする
-        if (durationSeconds >= 3 && onSessionEnd) {
-          onSessionEnd({ mode: screen, level: selectedLevel, durationSeconds, items: reviewCountRef.current });
-        }
-      }
-      sessionStartRef.current = null;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [screen, selectedLevel]);
-
-  // 進捗をSupabaseに記録するコールバック（未指定なら何もしない＝チャット内プレビュー時と同じ挙動）
-  // あわせて「学習回数」のカウントも進める
-  const reportAnswer = (...args) => {
-    bumpReviewCount();
-    if (onAnswer) onAnswer(...args);
-  };
 
   const toggleFavVocab = (word) => {
     setFavVocab((prev) => {
@@ -1072,24 +1019,6 @@ export default function App({
     <div style={{ background: COLORS.bg, minHeight: 500, fontFamily: SANS, color: COLORS.ink }} className="w-full p-6">
       <style>{FONT_IMPORT}</style>
 
-      {(studentName || onLogout) && (
-        <div className="max-w-2xl mx-auto flex items-center justify-between mb-3" style={{ fontFamily: SANS, fontSize: 12, color: COLORS.inkSoft }}>
-          <span>{studentName ? `${studentName} さん` : ""}</span>
-          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-            {myPageHref && (
-              <a href={myPageHref} style={{ color: COLORS.inkSoft, textDecoration: "underline", fontFamily: SANS, fontSize: 12 }}>
-                マイアカウント
-              </a>
-            )}
-            {onLogout && (
-              <button onClick={onLogout} style={{ background: "transparent", border: "none", color: COLORS.inkSoft, cursor: "pointer", textDecoration: "underline", fontFamily: SANS, fontSize: 12 }}>
-                ログアウト
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
       {toast && (
         <div className="max-w-xl mx-auto mb-4 px-4 py-3 text-center" style={{ background: COLORS.mossTint, color: COLORS.moss, fontSize: 13, border: `1.5px solid ${COLORS.moss}`, borderRadius: R, fontFamily: KLEE }}>
           {toast}
@@ -1142,21 +1071,17 @@ export default function App({
             })}
           </div>
 
-          {allowLocalImport && (
-            <div className="flex flex-wrap items-center justify-center gap-3">
-              <button onClick={() => setScreen("import")} className="flex items-center gap-1 px-4 py-2" style={{ background: COLORS.ink, color: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, fontFamily: SANS, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
-                <FileText size={16} /> CSVから問題を取り込む
-              </button>
-              <button onClick={resetSample} className="flex items-center gap-1 px-4 py-2" style={{ border: `1.5px solid ${COLORS.ink}`, background: "transparent", color: COLORS.inkSoft, borderRadius: R, fontFamily: SANS, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
-                <RotateCcw size={16} /> サンプルに戻す
-              </button>
-            </div>
-          )}
-          {allowLocalImport && (
-            <div style={{ fontSize: 11, color: COLORS.inkFaint, textAlign: "center", marginTop: 16, fontFamily: SANS }}>
-              ※このプロトタイプはログイン機能がありません。データはページを閉じると消えます。
-            </div>
-          )}
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <button onClick={() => setScreen("import")} className="flex items-center gap-1 px-4 py-2" style={{ background: COLORS.ink, color: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, fontFamily: SANS, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+              <FileText size={16} /> CSVから問題を取り込む
+            </button>
+            <button onClick={resetSample} className="flex items-center gap-1 px-4 py-2" style={{ border: `1.5px solid ${COLORS.ink}`, background: "transparent", color: COLORS.inkSoft, borderRadius: R, fontFamily: SANS, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+              <RotateCcw size={16} /> サンプルに戻す
+            </button>
+          </div>
+          <div style={{ fontSize: 11, color: COLORS.inkFaint, textAlign: "center", marginTop: 16, fontFamily: SANS }}>
+            ※このプロトタイプはログイン機能がありません。データはページを閉じると消えます。
+          </div>
         </div>
       )}
 
@@ -1172,13 +1097,13 @@ export default function App({
         />
       )}
 
-      {screen === "flashcardReading" && <FlashcardMode vocab={levelVocab} level={selectedLevel} lang={lang} cardMode="reading" favVocab={favVocab} onToggleFav={toggleFavVocab} onCardAdvance={bumpReviewCount} onExit={backToLevel} />}
-      {screen === "flashcardMeaning" && <FlashcardMode vocab={levelVocab} level={selectedLevel} lang={lang} cardMode="meaning" favVocab={favVocab} onToggleFav={toggleFavVocab} onCardAdvance={bumpReviewCount} onExit={backToLevel} />}
-      {screen === "vocab4" && <Vocab4Mode vocab={levelVocab} level={selectedLevel} lang={lang} favVocab={favVocab} onToggleFav={toggleFavVocab} onAnswer={reportAnswer} onExit={backToLevel} />}
-      {screen === "kanji" && <KanjiInputMode vocab={levelVocab} level={selectedLevel} favVocab={favVocab} onToggleFav={toggleFavVocab} onAnswer={reportAnswer} onExit={backToLevel} />}
-      {screen === "grammar4" && <GrammarMode grammar={levelGrammar} level={selectedLevel} favGrammar={favGrammar} onToggleFav={toggleFavGrammar} onAnswer={reportAnswer} onExit={backToLevel} />}
-      {screen === "kakitori" && <KakitoriMode list={levelKakitori} level={selectedLevel} favSet={favKakitori} onToggleFav={toggleFavKakitori} onAnswer={reportAnswer} onExit={backToLevel} />}
-      {allowLocalImport && screen === "import" && <ImportPanel onImport={handleImport} onExit={backToHome} />}
+      {screen === "flashcardReading" && <FlashcardMode vocab={levelVocab} level={selectedLevel} lang={lang} cardMode="reading" favVocab={favVocab} onToggleFav={toggleFavVocab} onExit={backToLevel} />}
+      {screen === "flashcardMeaning" && <FlashcardMode vocab={levelVocab} level={selectedLevel} lang={lang} cardMode="meaning" favVocab={favVocab} onToggleFav={toggleFavVocab} onExit={backToLevel} />}
+      {screen === "vocab4" && <Vocab4Mode vocab={levelVocab} level={selectedLevel} lang={lang} favVocab={favVocab} onToggleFav={toggleFavVocab} onExit={backToLevel} />}
+      {screen === "kanji" && <KanjiInputMode vocab={levelVocab} level={selectedLevel} favVocab={favVocab} onToggleFav={toggleFavVocab} onExit={backToLevel} />}
+      {screen === "grammar4" && <GrammarMode grammar={levelGrammar} level={selectedLevel} favGrammar={favGrammar} onToggleFav={toggleFavGrammar} onExit={backToLevel} />}
+      {screen === "kakitori" && <KakitoriMode list={levelKakitori} level={selectedLevel} favSet={favKakitori} onToggleFav={toggleFavKakitori} onExit={backToLevel} />}
+      {screen === "import" && <ImportPanel onImport={handleImport} onExit={backToHome} />}
     </div>
   );
 }
