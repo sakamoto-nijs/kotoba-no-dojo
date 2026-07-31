@@ -67,17 +67,6 @@ export default function AppPage() {
     });
   };
 
-  const handleSessionEnd = async ({ mode, level, durationSeconds, items }) => {
-    if (!studentId || !level) return;
-    await supabase.from("study_sessions").insert({
-      student_id: studentId,
-      mode,
-      level,
-      items,
-      duration_seconds: durationSeconds,
-    });
-  };
-
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.replace("/login");
@@ -98,9 +87,7 @@ export default function AppPage() {
       initialKakitori={initialKakitori}
       studentName={studentName}
       onAnswer={handleAnswer}
-      onSessionEnd={handleSessionEnd}
       onLogout={handleLogout}
-      myPageHref="/mypage"
       allowLocalImport={false}
     />
   );

@@ -51,7 +51,6 @@ export default async function handler(req, res) {
     student_code: studentCode.trim(),
     class_id: classId || null,
     created_by: userData.user.id,
-    current_password_plaintext: password,
   });
   if (profileErr) {
     // プロフィール作成に失敗した場合は認証アカウントも削除して整合性を保つ

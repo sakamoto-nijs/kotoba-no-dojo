@@ -27,6 +27,10 @@ const COLORS = {
 };
 const R = 3;
 const SHADOW = "0 2px 0 rgba(36,31,26,0.10)";
+// OS標準のcrosshairカーソルは環境によって白く見えて見づらいため、黒い十字カーソルを自前で用意する
+const BLACK_CROSSHAIR_CURSOR = `url("data:image/svg+xml,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><line x1="12" y1="1" x2="12" y2="23" stroke="black" stroke-width="2"/><line x1="1" y1="12" x2="23" y2="12" stroke="black" stroke-width="2"/></svg>'
+)}") 12 12, crosshair`;
 const SERIF = "'Shippori Mincho', serif";  // トップ画面（ホーム）専用
 const SANS = "'Zen Kaku Gothic New', sans-serif"; // トップ画面（ホーム）専用
 const KLEE = "'Klee One', sans-serif"; // 学習画面全般（留学生にも読みやすい書体）
@@ -419,7 +423,7 @@ function LevelSelect({ modeKey, fullList, favSet, idOf, minRequired, onSelect, o
   );
 }
 
-function FlashcardMode({ vocab, level, lang, cardMode, favVocab, onToggleFav, onCardAdvance, onExit }) {
+function FlashcardMode({ vocab, level, lang, cardMode, favVocab, onToggleFav, onExit }) {
   const [order, setOrder] = useState(() => vocab.map((_, i) => i));
   const [pos, setPos] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -429,8 +433,7 @@ function FlashcardMode({ vocab, level, lang, cardMode, favVocab, onToggleFav, on
   const isFav = favVocab.has(current.word);
   const meaningText = lang === "en" ? (current.meaningEn || current.meaning) : current.meaning;
 
-  // 「次へ」でカードを1枚進めるたびに1回とカウントする（学習回数の定義）
-  const next = () => { setFlipped(false); setPos((p) => (p + 1) % order.length); if (onCardAdvance) onCardAdvance(); };
+  const next = () => { setFlipped(false); setPos((p) => (p + 1) % order.length); };
   const prev = () => { setFlipped(false); setPos((p) => (p - 1 + order.length) % order.length); };
   const doShuffle = () => { setOrder(shuffle(vocab.map((_, i) => i))); setPos(0); setFlipped(false); };
 
@@ -810,7 +813,7 @@ function KakitoriMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
         style={{
           width: "100%", height: 260, display: "block",
           background: `linear-gradient(${COLORS.hairline} 1px, transparent 1px) 0 0/100% 33.3%, linear-gradient(90deg, ${COLORS.hairline} 1px, transparent 1px) 0 0/33.3% 100%, ${COLORS.surface}`,
-          border: `1.5px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW, touchAction: "none", cursor: "crosshair",
+          border: `1.5px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW, touchAction: "none", cursor: BLACK_CROSSHAIR_CURSOR,
         }}
       />
       <div className="flex gap-3 mt-3">
@@ -824,6 +827,14 @@ function KakitoriMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
           style={{ background: COLORS.ink, color: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, fontFamily: KLEE, fontWeight: 600, fontSize: 13, cursor: recognizing || picked ? "not-allowed" : "pointer", opacity: recognizing || picked ? 0.5 : 1 }}
         >
           認識する
+        </button>
+        <button
+          onClick={() => { if (!picked) next(); }}
+          disabled={!!picked}
+          className="px-4 py-2"
+          style={{ border: `1.5px solid ${COLORS.inkFaint}`, background: "transparent", color: COLORS.inkSoft, borderRadius: R, fontFamily: KLEE, fontWeight: 600, fontSize: 13, cursor: picked ? "not-allowed" : "pointer", opacity: picked ? 0.5 : 1 }}
+        >
+          わからない・スキップ
         </button>
       </div>
       <div style={{ fontSize: 12.5, color: COLORS.inkSoft, marginTop: 10, fontFamily: KLEE, minHeight: 18 }}>{status}</div>
@@ -936,17 +947,13 @@ function ImportPanel({ onImport, onExit }) {
   );
 }
 
-const MODE_KEYS = Object.keys(MODE_TITLES);
-
 export default function App({
   initialVocab,
   initialGrammar,
   initialKakitori,
   studentName,
   onAnswer,
-  onSessionEnd,
   onLogout,
-  myPageHref,
   allowLocalImport = true,
 } = {}) {
   const [vocabList, setVocabList] = useState(initialVocab && initialVocab.length ? initialVocab : SAMPLE_VOCAB);
@@ -961,37 +968,8 @@ export default function App({
   const [favGrammar, setFavGrammar] = useState(() => new Set());
   const [favKakitori, setFavKakitori] = useState(() => new Set());
 
-  // 「学習回数」のカウンター。③④⑤⑥は1問答えるたびに、①②はカードを1枚進めるたびに+1する。
-  // モード・レベルの画面を開いている間の経過時間とあわせて、画面を離れるタイミングでonSessionEndに渡す。
-  const reviewCountRef = useRef(0);
-  const sessionStartRef = useRef(null);
-  const bumpReviewCount = () => { reviewCountRef.current += 1; };
-
-  useEffect(() => {
-    const isModeScreen = MODE_KEYS.includes(screen);
-    if (isModeScreen) {
-      sessionStartRef.current = Date.now();
-      reviewCountRef.current = 0;
-    }
-    return () => {
-      if (isModeScreen && sessionStartRef.current) {
-        const durationSeconds = Math.round((Date.now() - sessionStartRef.current) / 1000);
-        // 数秒未満（誤操作でモードを開いてすぐ閉じた等）は記録しないようにする
-        if (durationSeconds >= 3 && onSessionEnd) {
-          onSessionEnd({ mode: screen, level: selectedLevel, durationSeconds, items: reviewCountRef.current });
-        }
-      }
-      sessionStartRef.current = null;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [screen, selectedLevel]);
-
   // 進捗をSupabaseに記録するコールバック（未指定なら何もしない＝チャット内プレビュー時と同じ挙動）
-  // あわせて「学習回数」のカウントも進める
-  const reportAnswer = (...args) => {
-    bumpReviewCount();
-    if (onAnswer) onAnswer(...args);
-  };
+  const reportAnswer = onAnswer || (() => {});
 
   const toggleFavVocab = (word) => {
     setFavVocab((prev) => {
@@ -1075,18 +1053,11 @@ export default function App({
       {(studentName || onLogout) && (
         <div className="max-w-2xl mx-auto flex items-center justify-between mb-3" style={{ fontFamily: SANS, fontSize: 12, color: COLORS.inkSoft }}>
           <span>{studentName ? `${studentName} さん` : ""}</span>
-          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-            {myPageHref && (
-              <a href={myPageHref} style={{ color: COLORS.inkSoft, textDecoration: "underline", fontFamily: SANS, fontSize: 12 }}>
-                マイアカウント
-              </a>
-            )}
-            {onLogout && (
-              <button onClick={onLogout} style={{ background: "transparent", border: "none", color: COLORS.inkSoft, cursor: "pointer", textDecoration: "underline", fontFamily: SANS, fontSize: 12 }}>
-                ログアウト
-              </button>
-            )}
-          </div>
+          {onLogout && (
+            <button onClick={onLogout} style={{ background: "transparent", border: "none", color: COLORS.inkSoft, cursor: "pointer", textDecoration: "underline", fontFamily: SANS, fontSize: 12 }}>
+              ログアウト
+            </button>
+          )}
         </div>
       )}
 
@@ -1172,8 +1143,8 @@ export default function App({
         />
       )}
 
-      {screen === "flashcardReading" && <FlashcardMode vocab={levelVocab} level={selectedLevel} lang={lang} cardMode="reading" favVocab={favVocab} onToggleFav={toggleFavVocab} onCardAdvance={bumpReviewCount} onExit={backToLevel} />}
-      {screen === "flashcardMeaning" && <FlashcardMode vocab={levelVocab} level={selectedLevel} lang={lang} cardMode="meaning" favVocab={favVocab} onToggleFav={toggleFavVocab} onCardAdvance={bumpReviewCount} onExit={backToLevel} />}
+      {screen === "flashcardReading" && <FlashcardMode vocab={levelVocab} level={selectedLevel} lang={lang} cardMode="reading" favVocab={favVocab} onToggleFav={toggleFavVocab} onExit={backToLevel} />}
+      {screen === "flashcardMeaning" && <FlashcardMode vocab={levelVocab} level={selectedLevel} lang={lang} cardMode="meaning" favVocab={favVocab} onToggleFav={toggleFavVocab} onExit={backToLevel} />}
       {screen === "vocab4" && <Vocab4Mode vocab={levelVocab} level={selectedLevel} lang={lang} favVocab={favVocab} onToggleFav={toggleFavVocab} onAnswer={reportAnswer} onExit={backToLevel} />}
       {screen === "kanji" && <KanjiInputMode vocab={levelVocab} level={selectedLevel} favVocab={favVocab} onToggleFav={toggleFavVocab} onAnswer={reportAnswer} onExit={backToLevel} />}
       {screen === "grammar4" && <GrammarMode grammar={levelGrammar} level={selectedLevel} favGrammar={favGrammar} onToggleFav={toggleFavGrammar} onAnswer={reportAnswer} onExit={backToLevel} />}

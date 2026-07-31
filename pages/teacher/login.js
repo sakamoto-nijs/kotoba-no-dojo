@@ -12,8 +12,6 @@ export default function TeacherLogin() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const [resetMsg, setResetMsg] = useState(null);
-
   const onSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -22,16 +20,6 @@ export default function TeacherLogin() {
     setLoading(false);
     if (error) { setError("メールアドレスまたはパスワードが正しくありません。"); return; }
     router.replace("/teacher/dashboard");
-  };
-
-  const onForgotPassword = async () => {
-    setError(null); setResetMsg(null);
-    if (!email) { setError("パスワード再設定用のメールを送るため、まずメールアドレスを入力してください。"); return; }
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: typeof window !== "undefined" ? `${window.location.origin}/teacher/reset-password` : undefined,
-    });
-    if (error) { setError(error.message); return; }
-    setResetMsg("パスワード再設定用のメールを送信しました。メール内のリンクを開いてください。");
   };
 
   return (
@@ -61,19 +49,7 @@ export default function TeacherLogin() {
           {loading ? "ログイン中…" : "ログイン"}
         </button>
 
-        {resetMsg && (
-          <div style={{ background: "var(--moss-tint)", color: "var(--moss)", border: "1.5px solid var(--moss)", borderRadius: R, padding: "10px 14px", fontSize: 13, marginTop: 14 }}>
-            {resetMsg}
-          </div>
-        )}
-
-        <div style={{ textAlign: "center", marginTop: 14 }}>
-          <button type="button" onClick={onForgotPassword} style={{ background: "none", border: "none", color: "var(--ink-soft)", fontSize: 12, textDecoration: "underline", cursor: "pointer" }}>
-            パスワードをお忘れの方
-          </button>
-        </div>
-
-        <div style={{ textAlign: "center", marginTop: 12, fontSize: 12, display: "flex", justifyContent: "space-between" }}>
+        <div style={{ textAlign: "center", marginTop: 18, fontSize: 12, display: "flex", justifyContent: "space-between" }}>
           <a href="/login" style={{ color: "var(--ink-soft)" }}>学生の方はこちら</a>
           <a href="/teacher/signup" style={{ color: "var(--ink-soft)" }}>初めての方（登録）</a>
         </div>

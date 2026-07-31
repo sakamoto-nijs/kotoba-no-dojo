@@ -97,13 +97,23 @@ export default function TeacherUpload() {
     const { rows, problems } = parseCSVText(text);
     if (rows.length === 0) { setError("有効なデータが見つかりませんでした。"); return; }
 
+    const confirmed = window.confirm(
+      `既存の問題（${existingCount ?? 0}件）をすべて削除し、新しく${rows.length}件に置き換えます。\n` +
+      `既存の問題に紐づく学習進捗の記録も、あわせて見えなくなります。\n\nよろしいですか？`
+    );
+    if (!confirmed) return;
+
     setLoading(true);
+    // 既存の問題をすべて削除してから、新しいデータを取り込む（置き換え方式）
+    const { error: deleteErr } = await supabase.from("questions").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    if (deleteErr) { setLoading(false); setError(`既存データの削除に失敗しました: ${deleteErr.message}`); return; }
+
     const withCreator = rows.map((r) => ({ ...r, created_by: session.user.id }));
     const { error: insertErr } = await supabase.from("questions").insert(withCreator);
     setLoading(false);
     if (insertErr) { setError(`取り込みに失敗しました: ${insertErr.message}`); return; }
 
-    setMsg(`取り込み完了：${rows.length}件を追加しました${problems.length ? `（注意${problems.length}件）` : ""}。学生側の「ことばの道場」に反映されます。`);
+    setMsg(`置き換え完了：問題を${rows.length}件に更新しました${problems.length ? `（注意${problems.length}件）` : ""}。学生側の「ことばの道場」に反映されます。`);
     setText(""); setFileName(null);
     const { count } = await supabase.from("questions").select("id", { count: "exact", head: true });
     setExistingCount(count ?? 0);
@@ -117,8 +127,11 @@ export default function TeacherUpload() {
           <a href="/teacher/dashboard" style={{ fontSize: 13, color: "var(--ink-soft)" }}>← ダッシュボードへ戻る</a>
         </div>
 
-        <div style={{ fontSize: 12, color: "var(--ink-soft)", marginBottom: 14 }}>
+        <div style={{ fontSize: 12, color: "var(--ink-soft)", marginBottom: 6 }}>
           現在の問題数：{existingCount === null ? "…" : `${existingCount}件`}
+        </div>
+        <div style={{ fontSize: 12, color: "var(--vermilion-deep)", marginBottom: 14 }}>
+          ※新しいCSVを取り込むと、既存の問題はすべて削除されて置き換わります（追加ではありません）
         </div>
 
         <div style={{ background: "var(--surface)", border: "1.5px solid var(--ink)", borderRadius: R, boxShadow: SHADOW, padding: 20 }}>
@@ -141,7 +154,7 @@ export default function TeacherUpload() {
 
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
             <button onClick={doUpload} disabled={loading} style={{ padding: "10px 20px", background: "var(--ink)", color: "var(--surface)", border: "1.5px solid var(--ink)", borderRadius: R, fontWeight: 600, fontSize: 13, cursor: loading ? "not-allowed" : "pointer" }}>
-              {loading ? "取り込み中…" : "取り込む"}
+              {loading ? "置き換え中…" : "取り込む（既存データを置き換え）"}
             </button>
           </div>
         </div>
