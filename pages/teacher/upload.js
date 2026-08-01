@@ -418,7 +418,9 @@ export default function TeacherUpload() {
         <div style={{ fontSize: 12, color: "var(--ink-soft)", lineHeight: 1.8, marginTop: 16, marginBottom: 28 }}>
           <div><b>type</b>: vocab（単語）／ grammar（文法）／ kakitori（漢字書き取り・単漢字）／ vocab4choice（語彙4択）／ kanji4choice（漢字4択）／ reading（読解）／ reorder（並べ替え）</div>
           <div><b>kakitori行</b>は word 列に単漢字を1文字入れてください（例: 学）</div>
-          <div><b>vocab4choice・kanji4choice行</b>はgrammarと同じくblank（問題文）・choice1〜4・answer（1〜4）を使用します</div>
+          <div><b>vocab4choice・kanji4choice行</b>はgrammarと同じくblank（問題文）・choice1〜4・answer（1〜4）を使用します。blankに___（アンダースコア3つ）を入れると空欄埋め形式に、入れなければ普通の設問文として表示されます</div>
+          <div><b>___（アンダースコア3つ）</b>はgrammar・vocab4choice・kanji4choiceのblank、reorderのblankのどこでも、空欄として色付きの下線で表示されます</div>
+          <div><b>ふりがな</b>：word以外の自由記述欄（example・blank・passage・q1〜q5・choice1〜4・card1〜card6など）では、「学校(がっこう)」のように漢字の直後に（半角・全角どちらでも）読み方をかっこ書きすると、学生画面では漢字の上に小さくふりがなとして表示されます</div>
           <div><b>reading行</b>はpassage（文章）と、q1〜q5（設問・choice1〜4・answer）を使用します。設問は最大5つまで、1つ以上あれば取り込めます</div>
           <div><b>reorder行</b>はblank（___を含む例文）と、card1〜card6（正しい順番の単語、3〜6枚）を使用します</div>
         </div>

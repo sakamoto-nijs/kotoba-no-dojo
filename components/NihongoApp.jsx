@@ -44,6 +44,45 @@ const SERIF = "'Shippori Mincho', serif";  // トップ画面（ホーム）専�
 const SANS = "'Zen Kaku Gothic New', sans-serif"; // トップ画面（ホーム）専用
 const KLEE = "'Klee One', sans-serif"; // 学習画面全般（留学生にも読みやすい書体）
 
+// 「漢字(かな)」「漢字（かな）」と書くと、漢字の上にふりがな（<ruby>）を自動表示する。
+// 半角・全角どちらの括弧も認識する。読み方はひらがな（＋長音記号ー）のみを対象とし、
+// それ以外（英語の注記など）が括弧内にある場合はふりがなに変換せず、そのまま表示する。
+const FURIGANA_RE = /([\u4E00-\u9FFF\u3005]+)[（(]([\u3040-\u309F\u30FC]+)[）)]/g;
+
+// 問題文中の「___」（アンダースコア3つ）を、色付きの下線付き空欄として表示する。
+// 対象：grammar・vocab4choice・kanji4choice・reorderの問題文（blank）
+function renderAnnotatedText(text) {
+  if (!text) return null;
+  const segments = String(text).split("___");
+  const nodes = [];
+  segments.forEach((seg, segIdx) => {
+    if (segIdx > 0) {
+      nodes.push(
+        <span key={`blank-${segIdx}`} style={{ display: "inline-block", minWidth: "3.6em", borderBottom: `3px solid ${COLORS.vermilion}`, margin: "0 3px" }}>
+          &nbsp;
+        </span>
+      );
+    }
+    if (!seg) return;
+    const re = new RegExp(FURIGANA_RE);
+    let lastIndex = 0;
+    let match;
+    let key = 0;
+    while ((match = re.exec(seg)) !== null) {
+      if (match.index > lastIndex) nodes.push(<React.Fragment key={`t-${segIdx}-${key++}`}>{seg.slice(lastIndex, match.index)}</React.Fragment>);
+      nodes.push(
+        <ruby key={`r-${segIdx}-${key++}`}>
+          {match[1]}
+          <rt style={{ fontSize: "0.6em", color: COLORS.inkSoft }}>{match[2]}</rt>
+        </ruby>
+      );
+      lastIndex = match.index + match[0].length;
+    }
+    if (lastIndex < seg.length) nodes.push(<React.Fragment key={`t-${segIdx}-${key++}`}>{seg.slice(lastIndex)}</React.Fragment>);
+  });
+  return nodes;
+}
+
 const LEVELS = [
   { key: "N5", desc: "初級" },
   { key: "N4", desc: "初中級" },
@@ -494,14 +533,20 @@ function FlashcardMode({ vocab, level, lang, cardMode, favVocab, onToggleFav, on
   const doShuffle = () => { setOrder(shuffle(vocab.map((_, i) => i))); setPos(0); setFlipped(false); };
 
   // 「単語側」と「情報側」、それぞれの表示内容は固定。表裏入れ替えはどちらを先に見せるかだけを変える。
-  // 読み方カードは「単語＋読み方」のみ、意味カードは「単語＋意味」のみを表示し、互いの情報は混在させない。
-  const wordSide = (
+  // 読み方カードは「単語＋読み方」のみ、意味カードは「単語＋意味」のみを表示するのが基本方針だが、
+  // 意味カードは単語が漢字だけだと読めない場合があるため、読み方をふりがな（60%サイズ）として併記する。
+  const wordSide = cardMode === "meaning" ? (
+    <ruby style={{ fontFamily: KLEE, fontWeight: 600, fontSize: autoFontSize(current.word), color: COLORS.ink }}>
+      {current.word}
+      <rt style={{ fontSize: "0.6em", fontWeight: 500, color: COLORS.inkSoft }}>{current.reading}</rt>
+    </ruby>
+  ) : (
     <div style={{ fontFamily: KLEE, fontWeight: 600, fontSize: autoFontSize(current.word), color: COLORS.ink }}>{current.word}</div>
   );
   const infoSide = cardMode === "reading" ? (
     <div style={{ fontFamily: KLEE, fontSize: autoFontSize(current.reading, 40, 20, 4), color: COLORS.indigo, fontWeight: 600 }}>{current.reading}</div>
   ) : (
-    <div style={{ fontSize: autoFontSize(meaningText, 34, 18, 8), color: COLORS.ink, fontFamily: KLEE }}>{meaningText}</div>
+    <div style={{ fontSize: autoFontSize(meaningText, 34, 18, 8), color: COLORS.ink, fontFamily: KLEE }}>{renderAnnotatedText(meaningText)}</div>
   );
   const frontContent = reversed ? infoSide : wordSide;
   const backContent = reversed ? wordSide : infoSide;
@@ -548,8 +593,8 @@ function Vocab4Mode({ vocab, level, lang, favVocab, onToggleFav, onAnswer, onExi
   const title = `${MODE_TITLES.vocab4}（${level}）`;
   const buildQuestions = () =>
     shuffle(vocab).map((v) => {
-      const distractors = shuffle(vocab.filter((x) => x.word !== v.word)).slice(0, 3).map((x) => x.word);
-      const options = shuffle([v.word, ...distractors]);
+      const distractors = shuffle(vocab.filter((x) => x.word !== v.word)).slice(0, 3);
+      const options = shuffle([v, ...distractors]).map((x) => ({ word: x.word, reading: x.reading }));
       const meaningText = lang === "en" ? (v.meaningEn || v.meaning) : v.meaning;
       return { id: v.id || v.word, q: meaningText, answer: v.word, options };
     });
@@ -564,8 +609,8 @@ function Vocab4Mode({ vocab, level, lang, favVocab, onToggleFav, onAnswer, onExi
 
   const choose = (opt) => {
     if (selected) return;
-    setSelected(opt);
-    const correct = opt === current.answer;
+    setSelected(opt.word);
+    const correct = opt.word === current.answer;
     if (correct) setScore((s) => s + 1);
     if (onAnswer) onAnswer(current.id, "vocab4", correct);
   };
@@ -594,20 +639,20 @@ function Vocab4Mode({ vocab, level, lang, favVocab, onToggleFav, onAnswer, onExi
       <div className="p-8 mb-6 relative" style={{ background: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW }}>
         <StarButton active={isFav} onClick={() => onToggleFav(current.answer)} style={{ position: "absolute", top: 8, right: 8 }} />
         <div style={{ fontSize: 11, color: COLORS.vermilion, marginBottom: 10, letterSpacing: "0.1em", fontWeight: 600, fontFamily: KLEE }}>この意味を表す単語は？</div>
-        <div style={{ fontSize: autoFontSize(current.q, 21, 14, 20), color: COLORS.ink, fontWeight: 500, fontFamily: KLEE }}>{current.q}</div>
+        <div style={{ fontSize: autoFontSize(current.q, 21, 14, 20), color: COLORS.ink, fontWeight: 500, fontFamily: KLEE }}>{renderAnnotatedText(current.q)}</div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         {current.options.map((opt, i) => {
           let style = { background: COLORS.surface, border: `1.5px solid ${COLORS.hairline}`, color: COLORS.ink };
           if (selected) {
-            if (opt === current.answer) style = { background: COLORS.mossTint, border: `1.5px solid ${COLORS.moss}`, color: COLORS.moss };
-            else if (opt === selected) style = { background: COLORS.vermilionTint, border: `1.5px solid ${COLORS.vermilion}`, color: COLORS.vermilionDeep };
+            if (opt.word === current.answer) style = { background: COLORS.mossTint, border: `1.5px solid ${COLORS.moss}`, color: COLORS.moss };
+            else if (opt.word === selected) style = { background: COLORS.vermilionTint, border: `1.5px solid ${COLORS.vermilion}`, color: COLORS.vermilionDeep };
           }
           return (
             <button key={i} onClick={() => choose(opt)} className="flex items-center justify-between px-5 py-4 text-left" style={{ ...style, fontFamily: KLEE, fontSize: 20, fontWeight: 600, borderRadius: R, cursor: selected ? "default" : "pointer" }}>
-              {opt}
-              {selected && opt === current.answer && <Check size={20} />}
-              {selected && opt === selected && opt !== current.answer && <X size={20} />}
+              <span>{opt.word}{opt.reading ? `（${opt.reading}）` : ""}</span>
+              {selected && opt.word === current.answer && <Check size={20} />}
+              {selected && opt.word === selected && opt.word !== current.answer && <X size={20} />}
             </button>
           );
         })}
@@ -757,11 +802,11 @@ function GrammarMode({ grammar, level, favGrammar, onToggleFav, onAnswer, onExit
       <div className="p-8 mb-6 text-center relative" style={{ background: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW }}>
         <StarButton active={isFav} onClick={() => onToggleFav(current.blank)} style={{ position: "absolute", top: 8, right: 8 }} />
         <div style={{ fontSize: 20, lineHeight: 1.9, color: COLORS.ink, fontFamily: KLEE }}>
-          {parts[0]}
+          {renderAnnotatedText(parts[0])}
           <span style={{ display: "inline-block", minWidth: 48, borderBottom: `2px solid ${COLORS.vermilion}`, margin: "0 4px", color: COLORS.indigo, fontWeight: 600, fontFamily: KLEE }}>
-            {selected !== null ? current.choices[selected] : "　　"}
+            {selected !== null ? renderAnnotatedText(current.choices[selected]) : "　　"}
           </span>
-          {parts[1]}
+          {renderAnnotatedText(parts[1])}
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -773,7 +818,7 @@ function GrammarMode({ grammar, level, favGrammar, onToggleFav, onAnswer, onExit
           }
           return (
             <button key={i} onClick={() => choose(i)} className="px-5 py-4" style={{ ...style, fontFamily: KLEE, fontSize: 18, fontWeight: 600, borderRadius: R, cursor: selected !== null ? "default" : "pointer" }}>
-              {c}
+              {renderAnnotatedText(c)}
             </button>
           );
         })}
@@ -866,7 +911,7 @@ function KakitoriMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
         <StarButton active={isFav} onClick={() => onToggleFav(current.char)} style={{ position: "absolute", top: 8, right: 8 }} />
         <div style={{ fontSize: 11, color: COLORS.inkFaint, marginBottom: 8, letterSpacing: "0.08em", fontFamily: KLEE }}>次の意味・読み方を持つ漢字を書いてください</div>
         <div style={{ fontFamily: KLEE, fontSize: 22, color: COLORS.indigo, fontWeight: 600 }}>{current.reading}</div>
-        <div style={{ fontSize: 14, color: COLORS.ink, fontFamily: KLEE, marginTop: 4 }}>{current.meaning}</div>
+        <div style={{ fontSize: 14, color: COLORS.ink, fontFamily: KLEE, marginTop: 4 }}>{renderAnnotatedText(current.meaning)}</div>
       </div>
 
       <canvas
@@ -969,6 +1014,10 @@ function BlankChoiceQuizMode({ modeKey, list, level, favSet, onToggleFav, onAnsw
     );
   }
 
+  // blankに「___」があれば文法穴埋めと同じ「空欄埋め」表示、なければ普通の設問文として表示する
+  const hasBlank = current.blank && current.blank.includes("___");
+  const parts = hasBlank ? current.blank.split("___") : [current.blank, ""];
+
   return (
     <div className="max-w-xl mx-auto">
       <TopBar title={title} onExit={onExit} progress={`${idx + 1} / ${questions.length}`} />
@@ -979,7 +1028,17 @@ function BlankChoiceQuizMode({ modeKey, list, level, favSet, onToggleFav, onAnsw
       </div>
       <div className="p-8 mb-6 text-center relative" style={{ background: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW }}>
         <StarButton active={isFav} onClick={() => onToggleFav(current.id || current.blank)} style={{ position: "absolute", top: 8, right: 8 }} />
-        <div style={{ fontSize: 17, lineHeight: 1.9, color: COLORS.ink, fontFamily: KLEE }}>{current.blank}</div>
+        <div style={{ fontSize: 17, lineHeight: 1.9, color: COLORS.ink, fontFamily: KLEE }}>
+          {hasBlank ? (
+            <>
+              {renderAnnotatedText(parts[0])}
+              <span style={{ display: "inline-block", minWidth: 48, borderBottom: `2px solid ${COLORS.vermilion}`, margin: "0 4px", color: COLORS.indigo, fontWeight: 600, fontFamily: KLEE }}>
+                {selected !== null ? renderAnnotatedText(current.choices[selected]) : "　　"}
+              </span>
+              {renderAnnotatedText(parts[1])}
+            </>
+          ) : renderAnnotatedText(current.blank)}
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         {current.choices.map((c, i) => {
@@ -990,7 +1049,7 @@ function BlankChoiceQuizMode({ modeKey, list, level, favSet, onToggleFav, onAnsw
           }
           return (
             <button key={i} onClick={() => choose(i)} className="px-5 py-4" style={{ ...style, fontFamily: KLEE, fontSize: 16, fontWeight: 600, borderRadius: R, cursor: selected !== null ? "default" : "pointer" }}>
-              {c}
+              {renderAnnotatedText(c)}
             </button>
           );
         })}
@@ -1055,14 +1114,14 @@ function ReadingMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
 
       <div className="p-6 mb-4 relative" style={{ background: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW }}>
         <StarButton active={isFav} onClick={() => onToggleFav(current.id || current.passage)} style={{ position: "absolute", top: 8, right: 8 }} />
-        <div style={{ fontSize: 15, lineHeight: 2, color: COLORS.ink, fontFamily: KLEE, whiteSpace: "pre-wrap", paddingRight: 28 }}>{current.passage}</div>
+        <div style={{ fontSize: 15, lineHeight: 2, color: COLORS.ink, fontFamily: KLEE, whiteSpace: "pre-wrap", paddingRight: 28 }}>{renderAnnotatedText(current.passage)}</div>
       </div>
 
       {current.questions.map((q, qi) => {
         const sel = answered[qi];
         return (
           <div key={qi} className="p-5 mb-4" style={{ background: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW }}>
-            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10, fontFamily: KLEE, color: COLORS.ink }}>問{qi + 1}. {q.question}</div>
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10, fontFamily: KLEE, color: COLORS.ink }}>問{qi + 1}. {renderAnnotatedText(q.question)}</div>
             <div className="grid grid-cols-1 gap-2">
               {q.choices.map((c, ci) => {
                 let style = { background: COLORS.bg, border: `1.5px solid ${COLORS.hairline}`, color: COLORS.ink };
@@ -1072,7 +1131,7 @@ function ReadingMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
                 }
                 return (
                   <button key={ci} onClick={() => chooseSub(qi, ci)} className="px-4 py-3 text-left" style={{ ...style, borderRadius: R, fontFamily: KLEE, fontSize: 14, cursor: sel !== undefined ? "default" : "pointer" }}>
-                    {ci + 1}. {c}
+                    {ci + 1}. {renderAnnotatedText(c)}
                   </button>
                 );
               })}
@@ -1158,8 +1217,6 @@ function ReorderMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
   const next = () => setIdx((i) => i + 1);
   const doShuffle = () => { setQuestions(shuffle(list)); setIdx(0); setScore(0); };
 
-  const parts = current.blank && current.blank.includes("___") ? current.blank.split("___") : [current.blank || "", ""];
-
   return (
     <div className="max-w-xl mx-auto">
       <TopBar title={title} onExit={onExit} progress={`${idx + 1} / ${questions.length}`} />
@@ -1172,7 +1229,7 @@ function ReorderMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
       <div className="p-6 mb-4 text-center relative" style={{ background: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW }}>
         <StarButton active={isFav} onClick={() => onToggleFav(current.id || current.blank)} style={{ position: "absolute", top: 8, right: 8 }} />
         <div style={{ fontSize: 18, lineHeight: 1.9, color: COLORS.ink, fontFamily: KLEE }}>
-          {parts[0]}<span style={{ color: COLORS.inkFaint }}>＿＿＿</span>{parts[1]}
+          {renderAnnotatedText(current.blank)}
         </div>
       </div>
 
@@ -1199,7 +1256,7 @@ function ReorderMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
                 borderRadius: R, fontFamily: KLEE, fontSize: 15, fontWeight: 600, cursor: s && !checked ? "pointer" : "default",
               }}
             >
-              {s ? s.word : ""}
+              {s ? renderAnnotatedText(s.word) : ""}
             </div>
           );
         })}
@@ -1216,7 +1273,7 @@ function ReorderMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
             className="px-4 py-2"
             style={{ border: `1.5px solid ${COLORS.ink}`, background: COLORS.surface, color: COLORS.ink, borderRadius: R, fontFamily: KLEE, fontSize: 15, fontWeight: 600, cursor: checked ? "not-allowed" : "pointer" }}
           >
-            {c.word}
+            {renderAnnotatedText(c.word)}
           </button>
         ))}
       </div>
