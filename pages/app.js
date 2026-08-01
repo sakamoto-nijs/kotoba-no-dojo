@@ -23,6 +23,35 @@ function mapKakitori(rows) {
     id: r.id, level: r.level, char: r.word, reading: r.reading, meaning: r.meaning,
   }));
 }
+// ⑦⑧ 語彙4択・漢字4択：文法穴埋め（grammar）と全く同じ形式（blank・choice1〜4・answer）を共有する
+function mapBlankChoice(rows, type) {
+  return rows.map((r) => ({
+    id: r.id, type, level: r.level,
+    blank: r.blank,
+    choices: [r.choice1, r.choice2, r.choice3, r.choice4],
+    answer: (r.answer || 1) - 1,
+  }));
+}
+// ⑨ 読解：1行=1パッセージ。reading_questions（jsonb配列、最大5件）を画面用の形に変換する
+function mapReading(rows) {
+  return rows.map((r) => ({
+    id: r.id, type: "reading", level: r.level,
+    passage: r.passage,
+    questions: (r.reading_questions || []).map((q) => ({
+      question: q.question,
+      choices: [q.choice1, q.choice2, q.choice3, q.choice4],
+      answer: (q.answer || 1) - 1,
+    })),
+  }));
+}
+// ⑩ 並べ替え：cards（jsonb配列、正しい順番）をそのまま使う
+function mapReorder(rows) {
+  return rows.map((r) => ({
+    id: r.id, type: "reorder", level: r.level,
+    blank: r.blank,
+    cards: r.cards || [],
+  }));
+}
 
 export default function AppPage() {
   const router = useRouter();
@@ -32,6 +61,10 @@ export default function AppPage() {
   const [initialVocab, setInitialVocab] = useState([]);
   const [initialGrammar, setInitialGrammar] = useState([]);
   const [initialKakitori, setInitialKakitori] = useState([]);
+  const [initialVocab4Choice, setInitialVocab4Choice] = useState([]);
+  const [initialKanji4Choice, setInitialKanji4Choice] = useState([]);
+  const [initialReading, setInitialReading] = useState([]);
+  const [initialReorder, setInitialReorder] = useState([]);
 
   useEffect(() => {
     (async () => {
@@ -49,6 +82,10 @@ export default function AppPage() {
       setInitialVocab(mapVocab(rows.filter((r) => r.type === "vocab")));
       setInitialGrammar(mapGrammar(rows.filter((r) => r.type === "grammar")));
       setInitialKakitori(mapKakitori(rows.filter((r) => r.type === "kakitori")));
+      setInitialVocab4Choice(mapBlankChoice(rows.filter((r) => r.type === "vocab4choice"), "vocab4choice"));
+      setInitialKanji4Choice(mapBlankChoice(rows.filter((r) => r.type === "kanji4choice"), "kanji4choice"));
+      setInitialReading(mapReading(rows.filter((r) => r.type === "reading")));
+      setInitialReorder(mapReorder(rows.filter((r) => r.type === "reorder")));
 
       setReady(true);
     })();
@@ -64,6 +101,17 @@ export default function AppPage() {
       question_id: questionId,
       mode,
       correct,
+    });
+  };
+
+  const handleSessionEnd = async ({ mode, level, durationSeconds, items }) => {
+    if (!studentId || !level) return;
+    await supabase.from("study_sessions").insert({
+      student_id: studentId,
+      mode,
+      level,
+      items,
+      duration_seconds: durationSeconds,
     });
   };
 
@@ -85,9 +133,15 @@ export default function AppPage() {
       initialVocab={initialVocab}
       initialGrammar={initialGrammar}
       initialKakitori={initialKakitori}
+      initialVocab4Choice={initialVocab4Choice}
+      initialKanji4Choice={initialKanji4Choice}
+      initialReading={initialReading}
+      initialReorder={initialReorder}
       studentName={studentName}
       onAnswer={handleAnswer}
+      onSessionEnd={handleSessionEnd}
       onLogout={handleLogout}
+      myPageHref="/mypage"
       allowLocalImport={false}
     />
   );

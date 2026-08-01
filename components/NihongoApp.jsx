@@ -4,7 +4,8 @@ import * as tf from "@tensorflow/tfjs";
 import {
   BookOpen, ListChecks, Type, PenLine, Upload, Shuffle,
   RotateCcw, Check, X, ChevronRight, ChevronLeft, Download,
-  ArrowLeft, RefreshCw, FileText, Star, Repeat, Languages, PenTool,
+  ArrowLeft, RefreshCw, FileText, Star, Repeat, Languages, PenTool, UserCircle,
+  BookOpenCheck, Hash, BookOpenText, GripVertical,
 } from "lucide-react";
 
 const FONT_IMPORT = `@import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;600;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Klee+One:wght@400;600&display=swap');`;
@@ -27,10 +28,9 @@ const COLORS = {
 };
 const R = 3;
 const SHADOW = "0 2px 0 rgba(36,31,26,0.10)";
-// OS標準のcrosshairカーソルは環境によって白く見えて見づらいため、黒い十字カーソルを自前で用意する
-const BLACK_CROSSHAIR_CURSOR = `url("data:image/svg+xml,${encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><line x1="12" y1="1" x2="12" y2="23" stroke="black" stroke-width="2"/><line x1="1" y1="12" x2="23" y2="12" stroke="black" stroke-width="2"/></svg>'
-)}") 12 12, crosshair`;
+// 書き取り用の手書きキャンバスのポインター。ブラウザ標準の cursor:"crosshair" は
+// 環境によって白っぽく表示され見えにくいことがあるため、黒い十字を自前のSVGで指定する。
+const BLACK_CROSSHAIR_CURSOR = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22"><line x1="11" y1="1" x2="11" y2="21" stroke="black" stroke-width="1.6"/><line x1="1" y1="11" x2="21" y2="11" stroke="black" stroke-width="1.6"/></svg>') 11 11, crosshair`;
 const SERIF = "'Shippori Mincho', serif";  // トップ画面（ホーム）専用
 const SANS = "'Zen Kaku Gothic New', sans-serif"; // トップ画面（ホーム）専用
 const KLEE = "'Klee One', sans-serif"; // 学習画面全般（留学生にも読みやすい書体）
@@ -51,6 +51,10 @@ const MODE_TITLES = {
   kanji: "④ 漢字読み方入力",
   grammar4: "⑤ 文法穴埋め",
   kakitori: "⑥ 漢字書き取り",
+  vocab4choice: "⑦ 語彙4択問題",
+  kanji4choice: "⑧ 漢字4択問題",
+  reading: "⑨ 読解問題",
+  reorder: "⑩ 並べ替え問題",
 };
 
 const SAMPLE_VOCAB = [
@@ -107,6 +111,48 @@ const KAKITORI_DATA = [
   { type: "kakitori", level: "N1", char: "概", reading: "がい", meaning: "おおむね・あらまし" },
   { type: "kakitori", level: "N1", char: "矛", reading: "む / ほこ", meaning: "武器の一種。つじつまが合わない意にも使う" },
 ];
+
+const SAMPLE_VOCAB4CHOICE = [
+  { type: "vocab4choice", level: "N5", blank: "「食べる」の意味として正しいものを選びなさい。", choices: ["食事をする", "外に出る", "本を読む", "友達と話す"], answer: 0 },
+  { type: "vocab4choice", level: "N4", blank: "「準備する」の意味として正しいものを選びなさい。", choices: ["前もって用意する", "急いで走る", "静かに聞く", "強く押す"], answer: 0 },
+  { type: "vocab4choice", level: "N3", blank: "「経験」の意味として正しいものを選びなさい。", choices: ["実際にやって得た知識", "机の上の道具", "決まりごと", "毎日の天気"], answer: 0 },
+  { type: "vocab4choice", level: "N2", blank: "「影響」の意味として正しいものを選びなさい。", choices: ["他のものに及ぼす働き", "遠くへ行くこと", "静かに待つこと", "新しく作ること"], answer: 0 },
+  { type: "vocab4choice", level: "N1", blank: "「妥協」の意味として正しいものを選びなさい。", choices: ["譲り合って合意すること", "強く主張し続けること", "全く無関係なこと", "細かく分析すること"], answer: 0 },
+];
+
+const SAMPLE_KANJI4CHOICE = [
+  { type: "kanji4choice", level: "N5", blank: "「学校」の読み方として正しいものを選びなさい。", choices: ["がっこう", "がくこう", "かっこう", "がっごう"], answer: 0 },
+  { type: "kanji4choice", level: "N4", blank: "「病院」の読み方として正しいものを選びなさい。", choices: ["びょういん", "びよういん", "びょうえん", "ひょういん"], answer: 0 },
+  { type: "kanji4choice", level: "N3", blank: "「準備」の読み方として正しいものを選びなさい。", choices: ["じゅんび", "じゅんひ", "しゅんび", "じゅび"], answer: 0 },
+  { type: "kanji4choice", level: "N2", blank: "「相談」の読み方として正しいものを選びなさい。", choices: ["そうだん", "そうたん", "しょうだん", "そだん"], answer: 0 },
+  { type: "kanji4choice", level: "N1", blank: "「把握」の読み方として正しいものを選びなさい。", choices: ["はあく", "はにぎ", "はわ", "はおく"], answer: 0 },
+];
+
+const SAMPLE_READING = [
+  {
+    type: "reading", level: "N5", passage: "私は毎朝七時に起きます。朝ご飯を食べてから、学校に行きます。学校では友達と日本語を勉強します。放課後は図書館で本を読みます。",
+    questions: [
+      { question: "「私」は何時に起きますか。", choices: ["七時", "六時", "八時", "九時"], answer: 0 },
+      { question: "放課後、どこへ行きますか。", choices: ["図書館", "病院", "駅", "家"], answer: 0 },
+    ],
+  },
+  {
+    type: "reading", level: "N3", passage: "先週、友達と旅行の計画を立てました。天気予報によると、来週末は雨が降るそうです。そのため、予定を少し変更することにしました。",
+    questions: [
+      { question: "来週末の天気はどうですか。", choices: ["雨が降る", "晴れる", "雪が降る", "わからない"], answer: 0 },
+      { question: "なぜ予定を変更しましたか。", choices: ["天気予報のため", "友達がいないため", "お金がないため", "学校があるため"], answer: 0 },
+    ],
+  },
+];
+
+const SAMPLE_REORDER = [
+  { type: "reorder", level: "N5", blank: "私は___。", cards: ["教室で", "日本語", "を", "勉強する"] },
+  { type: "reorder", level: "N4", blank: "彼は___。", cards: ["毎日", "図書館", "で", "本を", "読みます"] },
+  { type: "reorder", level: "N3", blank: "この問題は___。", cards: ["説明", "を", "聞いても", "よくわからない"] },
+  { type: "reorder", level: "N2", blank: "彼の意見に___。", cards: ["賛成", "する", "人", "も", "いる"] },
+  { type: "reorder", level: "N1", blank: "彼の才能は___。", cards: ["誰も", "及ぶ", "べくも", "ない"] },
+];
+
 
 const CSV_TEMPLATE = `type,level,word,reading,meaning,meaning_en,example,blank,choice1,choice2,choice3,choice4,answer
 vocab,N4,食事,しょくじ,食べること,meal,家族と食事をします。,,,,,,
@@ -423,7 +469,7 @@ function LevelSelect({ modeKey, fullList, favSet, idOf, minRequired, onSelect, o
   );
 }
 
-function FlashcardMode({ vocab, level, lang, cardMode, favVocab, onToggleFav, onExit }) {
+function FlashcardMode({ vocab, level, lang, cardMode, favVocab, onToggleFav, onCardAdvance, onExit }) {
   const [order, setOrder] = useState(() => vocab.map((_, i) => i));
   const [pos, setPos] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -433,7 +479,8 @@ function FlashcardMode({ vocab, level, lang, cardMode, favVocab, onToggleFav, on
   const isFav = favVocab.has(current.word);
   const meaningText = lang === "en" ? (current.meaningEn || current.meaning) : current.meaning;
 
-  const next = () => { setFlipped(false); setPos((p) => (p + 1) % order.length); };
+  // 「次へ」でカードを1枚進めるたびに1回とカウントする（学習回数の定義）
+  const next = () => { setFlipped(false); setPos((p) => (p + 1) % order.length); if (onCardAdvance) onCardAdvance(); };
   const prev = () => { setFlipped(false); setPos((p) => (p - 1 + order.length) % order.length); };
   const doShuffle = () => { setOrder(shuffle(vocab.map((_, i) => i))); setPos(0); setFlipped(false); };
 
@@ -789,6 +836,11 @@ function KakitoriMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
     if (correct) setScore((s) => s + 1);
     if (onAnswer) onAnswer(current.id || current.char, "kakitori", correct);
   };
+  const skip = () => {
+    if (picked) return;
+    setPicked("__SKIP__");
+    if (onAnswer) onAnswer(current.id || current.char, "kakitori", false);
+  };
   const next = () => setIdx((i) => i + 1);
   const doShuffle = () => { setQuestions(shuffle(list)); setIdx(0); setScore(0); };
 
@@ -828,13 +880,10 @@ function KakitoriMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
         >
           認識する
         </button>
-        <button
-          onClick={() => { if (!picked) next(); }}
-          disabled={!!picked}
-          className="px-4 py-2"
-          style={{ border: `1.5px solid ${COLORS.inkFaint}`, background: "transparent", color: COLORS.inkSoft, borderRadius: R, fontFamily: KLEE, fontWeight: 600, fontSize: 13, cursor: picked ? "not-allowed" : "pointer", opacity: picked ? 0.5 : 1 }}
-        >
-          わからない・スキップ
+      </div>
+      <div className="flex justify-end mt-2">
+        <button onClick={skip} disabled={!!picked} className="flex items-center gap-1 text-sm px-3 py-1.5" style={{ border: "none", background: "transparent", color: COLORS.inkSoft, textDecoration: "underline", fontFamily: KLEE, cursor: picked ? "not-allowed" : "pointer", opacity: picked ? 0.5 : 1 }}>
+          わからない（スキップ）
         </button>
       </div>
       <div style={{ fontSize: 12.5, color: COLORS.inkSoft, marginTop: 10, fontFamily: KLEE, minHeight: 18 }}>{status}</div>
@@ -858,8 +907,14 @@ function KakitoriMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
       )}
 
       {picked && (
-        <div className="mt-4 px-5 py-4" style={{ background: picked === current.char ? COLORS.mossTint : COLORS.vermilionTint, color: picked === current.char ? COLORS.moss : COLORS.vermilionDeep, border: `1.5px solid ${picked === current.char ? COLORS.moss : COLORS.vermilion}`, borderRadius: R, fontFamily: KLEE, fontSize: 14 }}>
-          {picked === current.char ? "正解です！" : `不正解です。正しい漢字: ${current.char}`}
+        <div className="mt-4 px-5 py-4" style={
+          picked === current.char
+            ? { background: COLORS.mossTint, color: COLORS.moss, border: `1.5px solid ${COLORS.moss}`, borderRadius: R, fontFamily: KLEE, fontSize: 14 }
+            : picked === "__SKIP__"
+              ? { background: COLORS.surface, color: COLORS.inkSoft, border: `1.5px solid ${COLORS.hairline}`, borderRadius: R, fontFamily: KLEE, fontSize: 14 }
+              : { background: COLORS.vermilionTint, color: COLORS.vermilionDeep, border: `1.5px solid ${COLORS.vermilion}`, borderRadius: R, fontFamily: KLEE, fontSize: 14 }
+        }>
+          {picked === current.char ? "正解です！" : picked === "__SKIP__" ? `スキップしました。正しい漢字：${current.char}` : `不正解です。正しい漢字: ${current.char}`}
         </div>
       )}
 
@@ -869,6 +924,316 @@ function KakitoriMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
             次の問題 <ChevronRight size={17} />
           </button>
         </div>
+      )}
+    </div>
+  );
+}
+
+// ⑦⑧ 語彙4択・漢字4択（教員がCSVで問題文・選択肢4つ・正解番号を直接入力する。形式は⑤文法穴埋めと同じ）
+function BlankChoiceQuizMode({ modeKey, list, level, favSet, onToggleFav, onAnswer, onExit }) {
+  const title = `${MODE_TITLES[modeKey]}（${level}）`;
+  const [questions, setQuestions] = useState(() => shuffle(list));
+  const [idx, setIdx] = useState(0);
+  const [selected, setSelected] = useState(null);
+  const [score, setScore] = useState(0);
+  const finished = idx >= questions.length;
+  const current = !finished ? questions[idx] : null;
+  const isFav = current ? favSet.has(current.id || current.blank) : false;
+
+  const choose = (i) => {
+    if (selected !== null) return;
+    setSelected(i);
+    const correct = i === current.answer;
+    if (correct) setScore((s) => s + 1);
+    if (onAnswer) onAnswer(current.id || current.blank, modeKey, correct);
+  };
+  const next = () => { setSelected(null); setIdx((i) => i + 1); };
+  const restart = () => { setIdx(0); setSelected(null); setScore(0); };
+  const doShuffle = () => { setQuestions(shuffle(list)); setIdx(0); setSelected(null); setScore(0); };
+
+  if (finished) {
+    return (
+      <div className="max-w-xl mx-auto text-center">
+        <TopBar title={title} onExit={onExit} />
+        <ResultCard score={score} total={questions.length} onRestart={restart} onExit={onExit} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-xl mx-auto">
+      <TopBar title={title} onExit={onExit} progress={`${idx + 1} / ${questions.length}`} />
+      <div className="flex justify-end mb-2">
+        <button onClick={doShuffle} className="flex items-center gap-1 px-3 py-1.5" style={{ border: `1.5px solid ${COLORS.ink}`, background: "transparent", color: COLORS.ink, borderRadius: R, fontFamily: KLEE, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+          <Shuffle size={14} /> シャッフル
+        </button>
+      </div>
+      <div className="p-8 mb-6 text-center relative" style={{ background: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW }}>
+        <StarButton active={isFav} onClick={() => onToggleFav(current.id || current.blank)} style={{ position: "absolute", top: 8, right: 8 }} />
+        <div style={{ fontSize: 17, lineHeight: 1.9, color: COLORS.ink, fontFamily: KLEE }}>{current.blank}</div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {current.choices.map((c, i) => {
+          let style = { background: COLORS.surface, border: `1.5px solid ${COLORS.hairline}`, color: COLORS.ink };
+          if (selected !== null) {
+            if (i === current.answer) style = { background: COLORS.mossTint, border: `1.5px solid ${COLORS.moss}`, color: COLORS.moss };
+            else if (i === selected) style = { background: COLORS.vermilionTint, border: `1.5px solid ${COLORS.vermilion}`, color: COLORS.vermilionDeep };
+          }
+          return (
+            <button key={i} onClick={() => choose(i)} className="px-5 py-4" style={{ ...style, fontFamily: KLEE, fontSize: 16, fontWeight: 600, borderRadius: R, cursor: selected !== null ? "default" : "pointer" }}>
+              {c}
+            </button>
+          );
+        })}
+      </div>
+      {selected !== null && (
+        <div className="flex justify-end mt-6">
+          <button onClick={next} className="flex items-center gap-1 px-5 py-2" style={{ background: COLORS.ink, color: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, fontFamily: KLEE, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            次の問題 <ChevronRight size={17} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ⑨ 読解問題（1つの文章につき、最大5つの設問・選択肢を同じ画面にまとめて表示する）
+function ReadingMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
+  const title = `${MODE_TITLES.reading}（${level}）`;
+  const [passages, setPassages] = useState(() => shuffle(list));
+  const [idx, setIdx] = useState(0);
+  const [answered, setAnswered] = useState({});
+  const [score, setScore] = useState(0);
+  const totalQuestions = list.reduce((sum, p) => sum + (p.questions ? p.questions.length : 0), 0);
+  const finished = idx >= passages.length;
+  const current = !finished ? passages[idx] : null;
+  const isFav = current ? favSet.has(current.id || current.passage) : false;
+
+  useEffect(() => {
+    setAnswered({});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idx]);
+
+  if (finished) {
+    return (
+      <div className="max-w-xl mx-auto text-center">
+        <TopBar title={title} onExit={onExit} />
+        <ResultCard score={score} total={totalQuestions} onRestart={() => { setIdx(0); setScore(0); setPassages(shuffle(list)); }} onExit={onExit} />
+      </div>
+    );
+  }
+
+  const chooseSub = (subIdx, choiceIdx) => {
+    if (answered[subIdx] !== undefined) return;
+    setAnswered((prev) => ({ ...prev, [subIdx]: choiceIdx }));
+    const q = current.questions[subIdx];
+    const correct = choiceIdx === q.answer;
+    if (correct) setScore((s) => s + 1);
+    if (onAnswer) onAnswer(current.id || `${idx}`, "reading", correct);
+  };
+  const allAnswered = current.questions.every((_, i) => answered[i] !== undefined);
+  const next = () => setIdx((i) => i + 1);
+  const doShuffle = () => { setPassages(shuffle(list)); setIdx(0); setAnswered({}); setScore(0); };
+
+  return (
+    <div className="max-w-2xl mx-auto">
+      <TopBar title={title} onExit={onExit} progress={`${idx + 1} / ${passages.length}`} />
+      <div className="flex justify-end mb-2">
+        <button onClick={doShuffle} className="flex items-center gap-1 px-3 py-1.5" style={{ border: `1.5px solid ${COLORS.ink}`, background: "transparent", color: COLORS.ink, borderRadius: R, fontFamily: KLEE, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+          <Shuffle size={14} /> シャッフル
+        </button>
+      </div>
+
+      <div className="p-6 mb-4 relative" style={{ background: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW }}>
+        <StarButton active={isFav} onClick={() => onToggleFav(current.id || current.passage)} style={{ position: "absolute", top: 8, right: 8 }} />
+        <div style={{ fontSize: 15, lineHeight: 2, color: COLORS.ink, fontFamily: KLEE, whiteSpace: "pre-wrap", paddingRight: 28 }}>{current.passage}</div>
+      </div>
+
+      {current.questions.map((q, qi) => {
+        const sel = answered[qi];
+        return (
+          <div key={qi} className="p-5 mb-4" style={{ background: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW }}>
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10, fontFamily: KLEE, color: COLORS.ink }}>問{qi + 1}. {q.question}</div>
+            <div className="grid grid-cols-1 gap-2">
+              {q.choices.map((c, ci) => {
+                let style = { background: COLORS.bg, border: `1.5px solid ${COLORS.hairline}`, color: COLORS.ink };
+                if (sel !== undefined) {
+                  if (ci === q.answer) style = { background: COLORS.mossTint, border: `1.5px solid ${COLORS.moss}`, color: COLORS.moss };
+                  else if (ci === sel) style = { background: COLORS.vermilionTint, border: `1.5px solid ${COLORS.vermilion}`, color: COLORS.vermilionDeep };
+                }
+                return (
+                  <button key={ci} onClick={() => chooseSub(qi, ci)} className="px-4 py-3 text-left" style={{ ...style, borderRadius: R, fontFamily: KLEE, fontSize: 14, cursor: sel !== undefined ? "default" : "pointer" }}>
+                    {ci + 1}. {c}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+
+      {allAnswered && (
+        <div className="flex justify-end mt-2 mb-6">
+          <button onClick={next} className="flex items-center gap-1 px-5 py-2" style={{ background: COLORS.ink, color: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, fontFamily: KLEE, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            次のパッセージ <ChevronRight size={17} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ⑩ 並べ替え問題（カードをタップ、またはドラッグ＆ドロップで正しい順番に並べる）
+function ReorderMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
+  const title = `${MODE_TITLES.reorder}（${level}）`;
+  const [questions, setQuestions] = useState(() => shuffle(list));
+  const [idx, setIdx] = useState(0);
+  const [pool, setPool] = useState([]);
+  const [slots, setSlots] = useState([]);
+  const [checked, setChecked] = useState(false);
+  const [score, setScore] = useState(0);
+  const finished = idx >= questions.length;
+  const current = !finished ? questions[idx] : null;
+  const isFav = current ? favSet.has(current.id || current.blank) : false;
+
+  useEffect(() => {
+    if (finished) return;
+    const q = questions[idx];
+    setPool(shuffle(q.cards.map((w, i) => ({ key: `${idx}-${i}-${w}`, word: w }))));
+    setSlots(new Array(q.cards.length).fill(null));
+    setChecked(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idx]);
+
+  if (finished) {
+    return (
+      <div className="max-w-xl mx-auto text-center">
+        <TopBar title={title} onExit={onExit} />
+        <ResultCard score={score} total={questions.length} onRestart={() => { setIdx(0); setScore(0); setQuestions(shuffle(list)); }} onExit={onExit} />
+      </div>
+    );
+  }
+
+  const placeCard = (card) => {
+    if (checked) return;
+    const emptyIdx = slots.findIndex((s) => s === null);
+    if (emptyIdx === -1) return;
+    setSlots((prev) => { const next = [...prev]; next[emptyIdx] = card; return next; });
+    setPool((prev) => prev.filter((c) => c.key !== card.key));
+  };
+  const removeSlot = (slotIdx) => {
+    if (checked || !slots[slotIdx]) return;
+    const card = slots[slotIdx];
+    setSlots((prev) => { const next = [...prev]; next[slotIdx] = null; return next; });
+    setPool((prev) => [...prev, card]);
+  };
+  const onDragStartCard = (e, card) => { e.dataTransfer.setData("text/plain", card.key); };
+  const onDropSlot = (e, slotIdx) => {
+    e.preventDefault();
+    if (checked || slots[slotIdx] !== null) return;
+    const key = e.dataTransfer.getData("text/plain");
+    const card = pool.find((c) => c.key === key);
+    if (!card) return;
+    setPool((prev) => prev.filter((c) => c.key !== key));
+    setSlots((prev) => { const next = [...prev]; next[slotIdx] = card; return next; });
+  };
+
+  const allFilled = slots.every((s) => s !== null);
+  const isAllCorrect = allFilled && slots.every((s, i) => s.word === current.cards[i]);
+  const check = () => {
+    if (!allFilled || checked) return;
+    setChecked(true);
+    if (isAllCorrect) setScore((s) => s + 1);
+    if (onAnswer) onAnswer(current.id || current.blank, "reorder", isAllCorrect);
+  };
+  const next = () => setIdx((i) => i + 1);
+  const doShuffle = () => { setQuestions(shuffle(list)); setIdx(0); setScore(0); };
+
+  const parts = current.blank && current.blank.includes("___") ? current.blank.split("___") : [current.blank || "", ""];
+
+  return (
+    <div className="max-w-xl mx-auto">
+      <TopBar title={title} onExit={onExit} progress={`${idx + 1} / ${questions.length}`} />
+      <div className="flex justify-end mb-2">
+        <button onClick={doShuffle} className="flex items-center gap-1 px-3 py-1.5" style={{ border: `1.5px solid ${COLORS.ink}`, background: "transparent", color: COLORS.ink, borderRadius: R, fontFamily: KLEE, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+          <Shuffle size={14} /> シャッフル
+        </button>
+      </div>
+
+      <div className="p-6 mb-4 text-center relative" style={{ background: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW }}>
+        <StarButton active={isFav} onClick={() => onToggleFav(current.id || current.blank)} style={{ position: "absolute", top: 8, right: 8 }} />
+        <div style={{ fontSize: 18, lineHeight: 1.9, color: COLORS.ink, fontFamily: KLEE }}>
+          {parts[0]}<span style={{ color: COLORS.inkFaint }}>＿＿＿</span>{parts[1]}
+        </div>
+      </div>
+
+      <div style={{ fontSize: 11.5, color: COLORS.inkFaint, marginBottom: 8, fontFamily: KLEE, textAlign: "center" }}>
+        正しい順番になるように、下のカードをタップ（またはドラッグ）して並べてください
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-4 p-3" style={{ minHeight: 56, border: `1.5px dashed ${COLORS.inkFaint}`, borderRadius: R, background: COLORS.bg }}>
+        {slots.map((s, i) => {
+          let borderColor = s ? COLORS.ink : COLORS.hairline;
+          let color = COLORS.ink;
+          if (checked && s) { borderColor = s.word === current.cards[i] ? COLORS.moss : COLORS.vermilion; color = s.word === current.cards[i] ? COLORS.moss : COLORS.vermilionDeep; }
+          return (
+            <div
+              key={i}
+              onClick={() => removeSlot(i)}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => onDropSlot(e, i)}
+              draggable={!!s && !checked}
+              onDragStart={(e) => s && onDragStartCard(e, s)}
+              style={{
+                minWidth: 56, minHeight: 40, padding: "8px 12px", display: "flex", alignItems: "center", justifyContent: "center",
+                background: s ? COLORS.surface : "transparent", border: `1.5px solid ${borderColor}`, color,
+                borderRadius: R, fontFamily: KLEE, fontSize: 15, fontWeight: 600, cursor: s && !checked ? "pointer" : "default",
+              }}
+            >
+              {s ? s.word : ""}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-6">
+        {pool.map((c) => (
+          <button
+            key={c.key}
+            draggable={!checked}
+            onDragStart={(e) => onDragStartCard(e, c)}
+            onClick={() => placeCard(c)}
+            disabled={checked}
+            className="px-4 py-2"
+            style={{ border: `1.5px solid ${COLORS.ink}`, background: COLORS.surface, color: COLORS.ink, borderRadius: R, fontFamily: KLEE, fontSize: 15, fontWeight: 600, cursor: checked ? "not-allowed" : "pointer" }}
+          >
+            {c.word}
+          </button>
+        ))}
+      </div>
+
+      {!checked ? (
+        <div className="flex justify-end">
+          <button onClick={check} disabled={!allFilled} className="px-5 py-3" style={{ background: COLORS.ink, color: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, fontFamily: KLEE, fontWeight: 600, fontSize: 13, cursor: allFilled ? "pointer" : "not-allowed", opacity: allFilled ? 1 : 0.5 }}>
+            答える
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="mt-2 px-5 py-4" style={{
+            background: isAllCorrect ? COLORS.mossTint : COLORS.vermilionTint,
+            color: isAllCorrect ? COLORS.moss : COLORS.vermilionDeep,
+            border: `1.5px solid ${isAllCorrect ? COLORS.moss : COLORS.vermilion}`,
+            borderRadius: R, fontFamily: KLEE, fontSize: 14,
+          }}>
+            {isAllCorrect ? "正解です！" : `不正解です。正しい順番：${current.cards.join(" / ")}`}
+          </div>
+          <div className="flex justify-end mt-6">
+            <button onClick={next} className="flex items-center gap-1 px-5 py-2" style={{ background: COLORS.ink, color: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, fontFamily: KLEE, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+              次の問題 <ChevronRight size={17} />
+            </button>
+          </div>
+        </>
       )}
     </div>
   );
@@ -947,18 +1312,30 @@ function ImportPanel({ onImport, onExit }) {
   );
 }
 
+const MODE_KEYS = Object.keys(MODE_TITLES);
+
 export default function App({
   initialVocab,
   initialGrammar,
   initialKakitori,
+  initialVocab4Choice,
+  initialKanji4Choice,
+  initialReading,
+  initialReorder,
   studentName,
   onAnswer,
+  onSessionEnd,
   onLogout,
+  myPageHref,
   allowLocalImport = true,
 } = {}) {
   const [vocabList, setVocabList] = useState(initialVocab && initialVocab.length ? initialVocab : SAMPLE_VOCAB);
   const [grammarList, setGrammarList] = useState(initialGrammar && initialGrammar.length ? initialGrammar : SAMPLE_GRAMMAR);
   const [kakitoriList] = useState(initialKakitori && initialKakitori.length ? initialKakitori : KAKITORI_DATA);
+  const [vocab4ChoiceList] = useState(initialVocab4Choice && initialVocab4Choice.length ? initialVocab4Choice : SAMPLE_VOCAB4CHOICE);
+  const [kanji4ChoiceList] = useState(initialKanji4Choice && initialKanji4Choice.length ? initialKanji4Choice : SAMPLE_KANJI4CHOICE);
+  const [readingList] = useState(initialReading && initialReading.length ? initialReading : SAMPLE_READING);
+  const [reorderList] = useState(initialReorder && initialReorder.length ? initialReorder : SAMPLE_REORDER);
   const [screen, setScreen] = useState("home");
   const [pendingMode, setPendingMode] = useState(null);
   const [selectedLevel, setSelectedLevel] = useState(null);
@@ -967,9 +1344,42 @@ export default function App({
   const [favVocab, setFavVocab] = useState(() => new Set());
   const [favGrammar, setFavGrammar] = useState(() => new Set());
   const [favKakitori, setFavKakitori] = useState(() => new Set());
+  const [favVocab4Choice, setFavVocab4Choice] = useState(() => new Set());
+  const [favKanji4Choice, setFavKanji4Choice] = useState(() => new Set());
+  const [favReading, setFavReading] = useState(() => new Set());
+  const [favReorder, setFavReorder] = useState(() => new Set());
+
+  // 「学習回数」のカウンター。③④⑤⑥は1問答えるたびに、①②はカードを1枚進めるたびに+1する。
+  // モード・レベルの画面を開いている間の経過時間とあわせて、画面を離れるタイミングでonSessionEndに渡す。
+  const reviewCountRef = useRef(0);
+  const sessionStartRef = useRef(null);
+  const bumpReviewCount = () => { reviewCountRef.current += 1; };
+
+  useEffect(() => {
+    const isModeScreen = MODE_KEYS.includes(screen);
+    if (isModeScreen) {
+      sessionStartRef.current = Date.now();
+      reviewCountRef.current = 0;
+    }
+    return () => {
+      if (isModeScreen && sessionStartRef.current) {
+        const durationSeconds = Math.round((Date.now() - sessionStartRef.current) / 1000);
+        // 数秒未満（誤操作でモードを開いてすぐ閉じた等）は記録しないようにする
+        if (durationSeconds >= 3 && onSessionEnd) {
+          onSessionEnd({ mode: screen, level: selectedLevel, durationSeconds, items: reviewCountRef.current });
+        }
+      }
+      sessionStartRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen, selectedLevel]);
 
   // 進捗をSupabaseに記録するコールバック（未指定なら何もしない＝チャット内プレビュー時と同じ挙動）
-  const reportAnswer = onAnswer || (() => {});
+  // あわせて「学習回数」のカウントも進める
+  const reportAnswer = (...args) => {
+    bumpReviewCount();
+    if (onAnswer) onAnswer(...args);
+  };
 
   const toggleFavVocab = (word) => {
     setFavVocab((prev) => {
@@ -989,6 +1399,34 @@ export default function App({
     setFavKakitori((prev) => {
       const next = new Set(prev);
       next.has(char) ? next.delete(char) : next.add(char);
+      return next;
+    });
+  };
+  const toggleFavVocab4Choice = (key) => {
+    setFavVocab4Choice((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+  const toggleFavKanji4Choice = (key) => {
+    setFavKanji4Choice((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+  const toggleFavReading = (key) => {
+    setFavReading((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+  const toggleFavReorder = (key) => {
+    setFavReorder((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
       return next;
     });
   };
@@ -1024,6 +1462,10 @@ export default function App({
     { key: "kanji", title: MODE_TITLES.kanji, desc: "ひらがなで読み方を入力", icon: Type, disabled: vocabList.length === 0 },
     { key: "grammar4", title: MODE_TITLES.grammar4, desc: "括弧に入る言葉を4択で選ぶ", icon: PenLine, disabled: grammarList.length === 0 },
     { key: "kakitori", title: MODE_TITLES.kakitori, desc: "手書きで漢字を書いて答える", icon: PenTool, disabled: kakitoriList.length === 0 },
+    { key: "vocab4choice", title: MODE_TITLES.vocab4choice, desc: "語彙の問題を4択で選ぶ", icon: BookOpenCheck, disabled: vocab4ChoiceList.length === 0 },
+    { key: "kanji4choice", title: MODE_TITLES.kanji4choice, desc: "漢字の問題を4択で選ぶ", icon: Hash, disabled: kanji4ChoiceList.length === 0 },
+    { key: "reading", title: MODE_TITLES.reading, desc: "文章を読んで設問に答える", icon: BookOpenText, disabled: readingList.length === 0 },
+    { key: "reorder", title: MODE_TITLES.reorder, desc: "カードを正しい順番に並べ替える", icon: GripVertical, disabled: reorderList.length === 0 },
   ];
 
   // レベル選択画面（LevelSelect）に渡すデータソースの定義。モードごとに参照するリスト・お気に入り集合・IDの取り方・必要最低問題数が異なる
@@ -1034,6 +1476,10 @@ export default function App({
     kanji: { fullList: vocabList, favSet: favVocab, idOf: (v) => v.word, minRequired: 1 },
     grammar4: { fullList: grammarList, favSet: favGrammar, idOf: (g) => g.blank, minRequired: 1 },
     kakitori: { fullList: kakitoriList, favSet: favKakitori, idOf: (k) => k.char, minRequired: 1 },
+    vocab4choice: { fullList: vocab4ChoiceList, favSet: favVocab4Choice, idOf: (q) => q.id || q.blank, minRequired: 1 },
+    kanji4choice: { fullList: kanji4ChoiceList, favSet: favKanji4Choice, idOf: (q) => q.id || q.blank, minRequired: 1 },
+    reading: { fullList: readingList, favSet: favReading, idOf: (p) => p.id || p.passage, minRequired: 1 },
+    reorder: { fullList: reorderList, favSet: favReorder, idOf: (q) => q.id || q.blank, minRequired: 1 },
   };
 
   const levelVocab =
@@ -1045,6 +1491,18 @@ export default function App({
   const levelKakitori =
     selectedLevel === "FAV" ? kakitoriList.filter((k) => favKakitori.has(k.char)) :
     selectedLevel ? kakitoriList.filter((k) => k.level === selectedLevel) : [];
+  const levelVocab4Choice =
+    selectedLevel === "FAV" ? vocab4ChoiceList.filter((q) => favVocab4Choice.has(q.id || q.blank)) :
+    selectedLevel ? vocab4ChoiceList.filter((q) => q.level === selectedLevel) : [];
+  const levelKanji4Choice =
+    selectedLevel === "FAV" ? kanji4ChoiceList.filter((q) => favKanji4Choice.has(q.id || q.blank)) :
+    selectedLevel ? kanji4ChoiceList.filter((q) => q.level === selectedLevel) : [];
+  const levelReading =
+    selectedLevel === "FAV" ? readingList.filter((p) => favReading.has(p.id || p.passage)) :
+    selectedLevel ? readingList.filter((p) => p.level === selectedLevel) : [];
+  const levelReorder =
+    selectedLevel === "FAV" ? reorderList.filter((q) => favReorder.has(q.id || q.blank)) :
+    selectedLevel ? reorderList.filter((q) => q.level === selectedLevel) : [];
 
   return (
     <div style={{ background: COLORS.bg, minHeight: 500, fontFamily: SANS, color: COLORS.ink }} className="w-full p-6">
@@ -1053,11 +1511,19 @@ export default function App({
       {(studentName || onLogout) && (
         <div className="max-w-2xl mx-auto flex items-center justify-between mb-3" style={{ fontFamily: SANS, fontSize: 12, color: COLORS.inkSoft }}>
           <span>{studentName ? `${studentName} さん` : ""}</span>
-          {onLogout && (
-            <button onClick={onLogout} style={{ background: "transparent", border: "none", color: COLORS.inkSoft, cursor: "pointer", textDecoration: "underline", fontFamily: SANS, fontSize: 12 }}>
-              ログアウト
-            </button>
-          )}
+          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+            {myPageHref && (
+              <a href={myPageHref} className="flex items-center gap-1.5" style={{ color: COLORS.surface, background: COLORS.indigo, border: `1.5px solid ${COLORS.indigo}`, borderRadius: R, padding: "7px 14px", textDecoration: "none", fontFamily: SANS, fontSize: 13, fontWeight: 700, lineHeight: 1.2 }}>
+                <UserCircle size={18} />
+                <span>マイアカウント <span style={{ fontWeight: 500, opacity: 0.85 }}>/ My Page</span></span>
+              </a>
+            )}
+            {onLogout && (
+              <button onClick={onLogout} style={{ background: "transparent", border: "none", color: COLORS.inkSoft, cursor: "pointer", textDecoration: "underline", fontFamily: SANS, fontSize: 12 }}>
+                ログアウト
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -1143,12 +1609,16 @@ export default function App({
         />
       )}
 
-      {screen === "flashcardReading" && <FlashcardMode vocab={levelVocab} level={selectedLevel} lang={lang} cardMode="reading" favVocab={favVocab} onToggleFav={toggleFavVocab} onExit={backToLevel} />}
-      {screen === "flashcardMeaning" && <FlashcardMode vocab={levelVocab} level={selectedLevel} lang={lang} cardMode="meaning" favVocab={favVocab} onToggleFav={toggleFavVocab} onExit={backToLevel} />}
+      {screen === "flashcardReading" && <FlashcardMode vocab={levelVocab} level={selectedLevel} lang={lang} cardMode="reading" favVocab={favVocab} onToggleFav={toggleFavVocab} onCardAdvance={bumpReviewCount} onExit={backToLevel} />}
+      {screen === "flashcardMeaning" && <FlashcardMode vocab={levelVocab} level={selectedLevel} lang={lang} cardMode="meaning" favVocab={favVocab} onToggleFav={toggleFavVocab} onCardAdvance={bumpReviewCount} onExit={backToLevel} />}
       {screen === "vocab4" && <Vocab4Mode vocab={levelVocab} level={selectedLevel} lang={lang} favVocab={favVocab} onToggleFav={toggleFavVocab} onAnswer={reportAnswer} onExit={backToLevel} />}
       {screen === "kanji" && <KanjiInputMode vocab={levelVocab} level={selectedLevel} favVocab={favVocab} onToggleFav={toggleFavVocab} onAnswer={reportAnswer} onExit={backToLevel} />}
       {screen === "grammar4" && <GrammarMode grammar={levelGrammar} level={selectedLevel} favGrammar={favGrammar} onToggleFav={toggleFavGrammar} onAnswer={reportAnswer} onExit={backToLevel} />}
       {screen === "kakitori" && <KakitoriMode list={levelKakitori} level={selectedLevel} favSet={favKakitori} onToggleFav={toggleFavKakitori} onAnswer={reportAnswer} onExit={backToLevel} />}
+      {screen === "vocab4choice" && <BlankChoiceQuizMode modeKey="vocab4choice" list={levelVocab4Choice} level={selectedLevel} favSet={favVocab4Choice} onToggleFav={toggleFavVocab4Choice} onAnswer={reportAnswer} onExit={backToLevel} />}
+      {screen === "kanji4choice" && <BlankChoiceQuizMode modeKey="kanji4choice" list={levelKanji4Choice} level={selectedLevel} favSet={favKanji4Choice} onToggleFav={toggleFavKanji4Choice} onAnswer={reportAnswer} onExit={backToLevel} />}
+      {screen === "reading" && <ReadingMode list={levelReading} level={selectedLevel} favSet={favReading} onToggleFav={toggleFavReading} onAnswer={reportAnswer} onExit={backToLevel} />}
+      {screen === "reorder" && <ReorderMode list={levelReorder} level={selectedLevel} favSet={favReorder} onToggleFav={toggleFavReorder} onAnswer={reportAnswer} onExit={backToLevel} />}
       {allowLocalImport && screen === "import" && <ImportPanel onImport={handleImport} onExit={backToHome} />}
     </div>
   );
