@@ -596,7 +596,7 @@ function Vocab4Mode({ vocab, level, lang, favVocab, onToggleFav, onAnswer, onExi
         <div style={{ fontSize: 11, color: COLORS.vermilion, marginBottom: 10, letterSpacing: "0.1em", fontWeight: 600, fontFamily: KLEE }}>この意味を表す単語は？</div>
         <div style={{ fontSize: autoFontSize(current.q, 21, 14, 20), color: COLORS.ink, fontWeight: 500, fontFamily: KLEE }}>{current.q}</div>
       </div>
-      <div className="grid grid-cols-1 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         {current.options.map((opt, i) => {
           let style = { background: COLORS.surface, border: `1.5px solid ${COLORS.hairline}`, color: COLORS.ink };
           if (selected) {
@@ -856,29 +856,29 @@ function KakitoriMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
   return (
     <div className="max-w-xl mx-auto">
       <TopBar title={title} onExit={onExit} progress={`${idx + 1} / ${questions.length}`} />
-      <div className="flex justify-end mb-2">
+      <div className="flex justify-end mb-1">
         <button onClick={doShuffle} className="flex items-center gap-1 px-3 py-1.5" style={{ border: `1.5px solid ${COLORS.ink}`, background: "transparent", color: COLORS.ink, borderRadius: R, fontFamily: KLEE, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
           <Shuffle size={14} /> シャッフル
         </button>
       </div>
 
-      <div className="p-6 mb-4 text-center relative" style={{ background: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW }}>
+      <div className="p-4 mb-3 text-center relative" style={{ background: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW }}>
         <StarButton active={isFav} onClick={() => onToggleFav(current.char)} style={{ position: "absolute", top: 8, right: 8 }} />
-        <div style={{ fontSize: 11, color: COLORS.inkFaint, marginBottom: 10, letterSpacing: "0.08em", fontFamily: KLEE }}>次の意味・読み方を持つ漢字を書いてください</div>
-        <div style={{ fontFamily: KLEE, fontSize: 24, color: COLORS.indigo, fontWeight: 600 }}>{current.reading}</div>
-        <div style={{ fontSize: 15, color: COLORS.ink, fontFamily: KLEE, marginTop: 6 }}>{current.meaning}</div>
+        <div style={{ fontSize: 11, color: COLORS.inkFaint, marginBottom: 8, letterSpacing: "0.08em", fontFamily: KLEE }}>次の意味・読み方を持つ漢字を書いてください</div>
+        <div style={{ fontFamily: KLEE, fontSize: 22, color: COLORS.indigo, fontWeight: 600 }}>{current.reading}</div>
+        <div style={{ fontSize: 14, color: COLORS.ink, fontFamily: KLEE, marginTop: 4 }}>{current.meaning}</div>
       </div>
 
       <canvas
         ref={canvasRef}
         style={{
-          width: "100%", height: 260, display: "block",
+          width: "100%", height: 180, display: "block",
           background: `linear-gradient(${COLORS.hairline} 1px, transparent 1px) 0 0/100% 33.3%, linear-gradient(90deg, ${COLORS.hairline} 1px, transparent 1px) 0 0/33.3% 100%, ${COLORS.surface}`,
           border: `1.5px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW, touchAction: "none", cursor: BLACK_CROSSHAIR_CURSOR,
         }}
       />
-      <div className="flex gap-3 mt-3">
-        <button onClick={() => { clear(); setCandidates([]); setStatus(""); }} className="px-4 py-2" style={{ border: `1.5px solid ${COLORS.ink}`, background: "transparent", color: COLORS.ink, borderRadius: R, fontFamily: KLEE, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
+      <div className="flex gap-3 mt-2">
+        <button onClick={() => { clear(); setCandidates([]); setStatus(""); }} className="px-4 py-1.5" style={{ border: `1.5px solid ${COLORS.ink}`, background: "transparent", color: COLORS.ink, borderRadius: R, fontFamily: KLEE, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
           消す
         </button>
         <button
@@ -890,15 +890,15 @@ function KakitoriMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
           認識する
         </button>
       </div>
-      <div className="flex justify-end mt-2">
-        <button onClick={skip} disabled={!!picked} className="flex items-center gap-1 text-sm px-3 py-1.5" style={{ border: "none", background: "transparent", color: COLORS.inkSoft, textDecoration: "underline", fontFamily: KLEE, cursor: picked ? "not-allowed" : "pointer", opacity: picked ? 0.5 : 1 }}>
+      <div className="flex justify-end mt-1">
+        <button onClick={skip} disabled={!!picked} className="flex items-center gap-1 text-sm px-3 py-1" style={{ border: "none", background: "transparent", color: COLORS.inkSoft, textDecoration: "underline", fontFamily: KLEE, cursor: picked ? "not-allowed" : "pointer", opacity: picked ? 0.5 : 1 }}>
           わからない（スキップ）
         </button>
       </div>
-      <div style={{ fontSize: 12.5, color: COLORS.inkSoft, marginTop: 10, fontFamily: KLEE, minHeight: 18 }}>{status}</div>
+      <div style={{ fontSize: 12.5, color: COLORS.inkSoft, marginTop: 6, fontFamily: KLEE, minHeight: 18 }}>{status}</div>
 
       {candidates.length > 0 && (
-        <div className="grid grid-cols-4 gap-2 mt-4">
+        <div className="grid grid-cols-4 gap-2 mt-2">
           {candidates.map((c, i) => {
             let style = { background: COLORS.surface, border: `1.5px solid ${COLORS.hairline}`, color: COLORS.ink };
             if (picked) {
@@ -906,9 +906,9 @@ function KakitoriMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
               else if (c.char === picked) style = { background: COLORS.vermilionTint, border: `1.5px solid ${COLORS.vermilion}`, color: COLORS.vermilionDeep };
             }
             return (
-              <button key={i} onClick={() => choose(c.char)} className="flex flex-col items-center justify-center py-3" style={{ ...style, borderRadius: R, aspectRatio: "1", fontFamily: KLEE, cursor: picked ? "default" : "pointer" }}>
-                <div style={{ fontSize: 26 }}>{c.char}</div>
-                <div style={{ fontSize: 10, color: COLORS.inkFaint }}>{(c.prob * 100).toFixed(0)}%</div>
+              <button key={i} onClick={() => choose(c.char)} className="flex flex-col items-center justify-center" style={{ ...style, height: 60, borderRadius: R, fontFamily: KLEE, cursor: picked ? "default" : "pointer" }}>
+                <div style={{ fontSize: 22, lineHeight: 1.1 }}>{c.char}</div>
+                <div style={{ fontSize: 9, color: COLORS.inkFaint }}>{(c.prob * 100).toFixed(0)}%</div>
               </button>
             );
           })}
@@ -916,7 +916,7 @@ function KakitoriMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
       )}
 
       {picked && (
-        <div className="mt-4 px-5 py-4" style={
+        <div className="mt-2 px-5 py-3" style={
           picked === current.char
             ? { background: COLORS.mossTint, color: COLORS.moss, border: `1.5px solid ${COLORS.moss}`, borderRadius: R, fontFamily: KLEE, fontSize: 14 }
             : picked === "__SKIP__"
@@ -928,7 +928,7 @@ function KakitoriMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
       )}
 
       {picked && (
-        <div className="flex justify-end mt-6">
+        <div className="flex justify-end mt-3">
           <button onClick={next} className="flex items-center gap-1 px-5 py-2" style={{ background: COLORS.ink, color: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, fontFamily: KLEE, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
             次の問題 <ChevronRight size={17} />
           </button>
@@ -1587,7 +1587,7 @@ export default function App({
                 >
                   <Icon size={22} color={COLORS.vermilion} />
                   <div>
-                    <div style={{ fontFamily: m.key === "vocab4" ? SERIF : KLEE, fontSize: 16, fontWeight: 700, color: COLORS.ink }}>{m.title}</div>
+                    <div style={{ fontFamily: KLEE, fontSize: 16, fontWeight: 700, color: COLORS.ink }}>{m.title}</div>
                     <div style={{ fontSize: 12.5, color: COLORS.inkSoft, marginTop: 4, fontFamily: SANS }}>{m.desc}</div>
                   </div>
                 </button>
