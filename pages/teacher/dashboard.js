@@ -38,7 +38,7 @@ function DetailModal({ row, onClose }) {
   if (!row) return null;
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(36,31,26,0.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--surface)", border: "1.5px solid var(--ink)", borderRadius: R, boxShadow: SHADOW, padding: 24, maxWidth: 720, width: "100%", maxHeight: "85vh", overflow: "auto" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--surface)", border: "1.5px solid var(--ink)", borderRadius: R, boxShadow: SHADOW, padding: 24, width: "80vw", maxWidth: 1400, maxHeight: "88vh", overflow: "auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 20, fontWeight: 800 }}>{row.name}（{row.code}）</div>
           <button onClick={onClose} style={{ background: "none", border: "1.5px solid var(--ink)", borderRadius: R, padding: "4px 12px", cursor: "pointer", fontSize: 12 }}>閉じる</button>
@@ -48,7 +48,7 @@ function DetailModal({ row, onClose }) {
           クラス：{row.className || "未設定"} ／ 総学習時間：{formatDuration(row.totalSeconds)} ／ 総学習回数：{row.totalReviews} ／ 最終学習：{row.lastAt ? formatDateTime(row.lastAt) : "-"}
         </div>
 
-        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>正答率（③④⑤⑥・レベル別）</div>
+        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>正答率（③〜⑩・レベル別）</div>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginBottom: 20 }}>
           <thead>
             <tr style={{ background: "var(--indigo)", color: "var(--surface)" }}>

@@ -5,10 +5,19 @@ import {
   BookOpen, ListChecks, Type, PenLine, Upload, Shuffle,
   RotateCcw, Check, X, ChevronRight, ChevronLeft, Download,
   ArrowLeft, RefreshCw, FileText, Star, Repeat, Languages, PenTool, UserCircle,
-  BookOpenCheck, Hash, BookOpenText, GripVertical,
+  BookOpenCheck, Hash, BookOpenText, GripVertical, Home,
 } from "lucide-react";
 
 const FONT_IMPORT = `@import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;600;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Klee+One:wght@400;600&display=swap');`;
+
+// PCで100%表示だと余白が多く感じるため、タブレット以上の画面幅では125%相当の大きさで表示する
+// （スマホ表示はこのままのサイズが最適なので対象外）。読解画面（reading）はもともと分量が多く
+// スクロール前提のため、他の画面（ホーム・レベル選択・読解以外の問題画面）はスクロール無しに収まる想定。
+const DESKTOP_SCALE_CSS = `
+@media (min-width: 768px) {
+  .kotoba-dojo-root { zoom: 1.25; }
+}
+`;
 
 const COLORS = {
   bg: "#F2ECDA",
@@ -1505,13 +1514,20 @@ export default function App({
     selectedLevel ? reorderList.filter((q) => q.level === selectedLevel) : [];
 
   return (
-    <div style={{ background: COLORS.bg, minHeight: 500, fontFamily: SANS, color: COLORS.ink }} className="w-full p-6">
+    <div style={{ background: COLORS.bg, minHeight: 500, fontFamily: SANS, color: COLORS.ink }} className="w-full p-6 kotoba-dojo-root">
       <style>{FONT_IMPORT}</style>
+      <style>{DESKTOP_SCALE_CSS}</style>
 
       {(studentName || onLogout) && (
         <div className="max-w-2xl mx-auto flex items-center justify-between mb-3" style={{ fontFamily: SANS, fontSize: 12, color: COLORS.inkSoft }}>
           <span>{studentName ? `${studentName} さん` : ""}</span>
-          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            {screen !== "home" && (
+              <button onClick={backToHome} className="flex items-center gap-1.5" style={{ color: COLORS.ink, background: "transparent", border: `1.5px solid ${COLORS.ink}`, borderRadius: R, padding: "7px 14px", fontFamily: SANS, fontSize: 13, fontWeight: 700, lineHeight: 1.2, cursor: "pointer" }}>
+                <Home size={18} />
+                <span>ホームに戻る</span>
+              </button>
+            )}
             {myPageHref && (
               <a href={myPageHref} className="flex items-center gap-1.5" style={{ color: COLORS.surface, background: COLORS.indigo, border: `1.5px solid ${COLORS.indigo}`, borderRadius: R, padding: "7px 14px", textDecoration: "none", fontFamily: SANS, fontSize: 13, fontWeight: 700, lineHeight: 1.2 }}>
                 <UserCircle size={18} />
@@ -1519,7 +1535,7 @@ export default function App({
               </a>
             )}
             {onLogout && (
-              <button onClick={onLogout} style={{ background: "transparent", border: "none", color: COLORS.inkSoft, cursor: "pointer", textDecoration: "underline", fontFamily: SANS, fontSize: 12 }}>
+              <button onClick={onLogout} style={{ color: COLORS.surface, background: COLORS.vermilionDeep, border: `1.5px solid ${COLORS.vermilionDeep}`, borderRadius: R, padding: "7px 14px", cursor: "pointer", fontFamily: SANS, fontSize: 13, fontWeight: 700, lineHeight: 1.2 }}>
                 ログアウト
               </button>
             )}
@@ -1571,7 +1587,7 @@ export default function App({
                 >
                   <Icon size={22} color={COLORS.vermilion} />
                   <div>
-                    <div style={{ fontFamily: SERIF, fontSize: 16, fontWeight: 700, color: COLORS.ink }}>{m.title}</div>
+                    <div style={{ fontFamily: m.key === "vocab4" ? SERIF : KLEE, fontSize: 16, fontWeight: 700, color: COLORS.ink }}>{m.title}</div>
                     <div style={{ fontSize: 12.5, color: COLORS.inkSoft, marginTop: 4, fontFamily: SANS }}>{m.desc}</div>
                   </div>
                 </button>
