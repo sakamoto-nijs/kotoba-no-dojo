@@ -316,6 +316,59 @@ export default function TeacherUpload() {
     triggerDownload(stripBOM(upload.raw_csv), upload.file_name || `kotoba_dojo_upload_${upload.id}.csv`);
   };
 
+  const doFullReset = async () => {
+    setConfirmBusy(true);
+    setLoading(true);
+    try {
+      const { data: existingQs, error: exErr } = await supabase.from("questions").select("id");
+      if (exErr) throw exErr;
+      const existingIds = (existingQs || []).map((q) => q.id);
+
+      // 1. 削除される問題に紐づく学習記録を、削除前にバックアップCSVとしてダウンロード
+      let backedUpCount = 0;
+      if (existingIds.length) {
+        backedUpCount = await backupProgressForQuestionIds(existingIds, "zenbu_reset");
+      }
+
+      // 2. これまでアップロードした全CSVの履歴も、削除前にそれぞれダウンロード
+      //    （ブラウザが連続ダウンロードをブロックしないよう、少し間隔をあけて実行する）
+      for (let i = 0; i < uploads.length; i++) {
+        handleDownloadHistory(uploads[i]);
+        await new Promise((resolve) => setTimeout(resolve, 350));
+      }
+
+      // 3. 問題データを全削除
+      if (existingIds.length) {
+        const { error: delErr } = await supabase.from("questions").delete().in("id", existingIds);
+        if (delErr) throw delErr;
+      }
+
+      // 4. アップロード履歴も全削除（「新規に追加」と違い、履歴自体を空にする）
+      const { error: histDelErr } = await supabase.from("csv_uploads").delete().eq("teacher_id", session.user.id);
+      if (histDelErr) throw histDelErr;
+
+      setMsg(`全リセット完了：問題${existingIds.length}件・アップロード履歴${uploads.length}件をすべて削除しました。${backedUpCount > 0 ? `学習記録${backedUpCount}件をバックアップ用CSVとして自動ダウンロードしました。` : ""}${uploads.length > 0 ? `過去にアップロードしたCSV ${uploads.length}件もあわせてダウンロードしました。` : ""}`);
+      setText(""); setFileName(null);
+      await Promise.all([loadExistingCount(), loadHistory()]);
+    } catch (e) {
+      setError(`リセットに失敗しました: ${e.message || e}`);
+    } finally {
+      setLoading(false);
+      setConfirmBusy(false);
+      setConfirmInfo(null);
+    }
+  };
+
+  const handleFullResetClick = () => {
+    setError(null); setMsg(null);
+    setConfirmInfo({
+      title: "すべての問題とアップロード履歴をリセットしますか？",
+      body: `現在登録されている問題 ${existingCount ?? 0}件と、アップロード履歴 ${uploads.length}件を、すべて削除して何も登録されていない状態に戻します。\n\nこの操作は元に戻せません。実行前に、削除される問題に紐づく学習記録と、これまでアップロードしたCSV（${uploads.length}件）が自動でダウンロードされます。`,
+      confirmLabel: "すべてリセットする",
+      onConfirm: doFullReset,
+    });
+  };
+
   const doDeleteBatch = async (upload) => {
     setConfirmBusy(true);
     setBatchBusyId(upload.id);
@@ -426,7 +479,14 @@ export default function TeacherUpload() {
         </div>
 
         <div style={{ borderTop: "2px solid var(--ink)", paddingTop: 20 }}>
-          <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 18, fontWeight: 800, marginBottom: 12 }}>アップロード履歴</div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 18, fontWeight: 800 }}>アップロード履歴</div>
+            {(uploads.length > 0 || (existingCount ?? 0) > 0) && (
+              <button onClick={handleFullResetClick} disabled={loading} style={{ fontSize: 12, padding: "6px 12px", border: "1.5px solid var(--vermilion)", background: "transparent", color: "var(--vermilion-deep)", borderRadius: R, cursor: loading ? "not-allowed" : "pointer", fontWeight: 600 }}>
+                全リセット（問題・履歴を全削除）
+              </button>
+            )}
+          </div>
           {historyLoading && <div style={{ fontSize: 13, color: "var(--ink-soft)" }}>読み込み中…</div>}
           {!historyLoading && uploads.length === 0 && (
             <div style={{ fontSize: 13, color: "var(--ink-soft)" }}>まだアップロード履歴がありません（この機能の追加より前にアップロードされた問題は、履歴に表示されません）。</div>
