@@ -7,8 +7,21 @@ import { MODE_LABELS, formatDateTime } from "../../lib/statsHelpers";
 const R = "3px";
 const SHADOW = "0 2px 0 rgba(36,31,26,0.10)";
 const LEVEL_KEYS = ["N5", "N4", "N3", "N2", "N1"];
-const TYPE_LABELS = { vocab: "単語", grammar: "文法", kakitori: "漢字書き取り", vocab4choice: "語彙4択", kanji4choice: "漢字4択", reading: "読解", reorder: "並べ替え" };
-const VALID_TYPES = ["vocab", "grammar", "kakitori", "vocab4choice", "kanji4choice", "reading", "reorder"];
+const TYPE_LABELS = {
+  vocab: "単語（共通）",
+  flashcardReading: "単語（①専用）",
+  flashcardMeaning: "単語（②専用）",
+  vocab4: "単語（③専用）",
+  kanji: "単語（④専用）",
+  grammar: "文法",
+  kakitori: "漢字書き取り",
+  vocab4choice: "語彙4択",
+  kanji4choice: "漢字4択",
+  reading: "読解",
+  reorder: "並べ替え",
+};
+const WORD_BASED_TYPES = ["vocab", "flashcardReading", "flashcardMeaning", "vocab4", "kanji"];
+const VALID_TYPES = [...WORD_BASED_TYPES, "grammar", "kakitori", "vocab4choice", "kanji4choice", "reading", "reorder"];
 const READING_Q_MAX = 5;
 const REORDER_CARD_MAX = 6;
 const REORDER_CARD_MIN = 3;
@@ -25,7 +38,8 @@ function parseBlankChoiceRow(row, type, level, idx, problems) {
   return { type, level, blank: row.blank.trim(), choice1: choices[0], choice2: choices[1], choice3: choices[2], choice4: choices[3], answer: answerNum };
 }
 
-// type: vocab / grammar / kakitori / vocab4choice / kanji4choice / reading / reorder に対応。
+// type: vocab（従来型・①②③④共通）/ flashcardReading（①専用）/ flashcardMeaning（②専用）/
+//       vocab4（③専用）/ kanji（④専用）/ grammar / kakitori / vocab4choice / kanji4choice / reading / reorder に対応。
 // kakitori（漢字書き取り）は word 列に「単漢字」を入れる運用にしています。
 function parseCSVText(text) {
   const result = Papa.parse(text.trim(), { header: true, skipEmptyLines: true });
@@ -40,7 +54,7 @@ function parseCSVText(text) {
       level = "N5";
     }
 
-    if (type === "vocab" || type === "kakitori") {
+    if (WORD_BASED_TYPES.includes(type) || type === "kakitori") {
       if (!row.word || !row.reading) { problems.push(`${idx + 2}行目: word/readingが空です`); return; }
       rows.push({
         type, level,
@@ -90,15 +104,17 @@ function parseCSVText(text) {
 }
 
 const TEMPLATE = `type,level,word,reading,meaning,meaning_en,example,blank,choice1,choice2,choice3,choice4,answer,passage,q1,q1_choice1,q1_choice2,q1_choice3,q1_choice4,q1_answer,q2,q2_choice1,q2_choice2,q2_choice3,q2_choice4,q2_answer,q3,q3_choice1,q3_choice2,q3_choice3,q3_choice4,q3_answer,q4,q4_choice1,q4_choice2,q4_choice3,q4_choice4,q4_answer,q5,q5_choice1,q5_choice2,q5_choice3,q5_choice4,q5_answer,card1,card2,card3,card4,card5,card6
-vocab,N4,食事,しょくじ,食べること,meal,家族と食事をします。,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-grammar,N3,,,,,,この駅___乗り換えます。,で,に,を,が,1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+flashcardReading,N4,食事,しょくじ,食べること,meal,家族と食事(しょくじ)をします。,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+flashcardMeaning,N4,食事,しょくじ,食べること,meal,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+vocab4,N4,食事,しょくじ,食べること,meal,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+kanji,N4,食事,しょくじ,食べること,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+grammar,N3,,,,,,この駅___乗り換(のりか)えます。,で,に,を,が,1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 kakitori,N5,学,がく,学ぶこと・学問,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 vocab4choice,N4,,,,,,「食べる」の意味として正しいものを選びなさい。,食事をする,外に出る,本を読む,友達と話す,1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-kanji4choice,N5,,,,,,「学校」の読み方として正しいものを選びなさい。,がっこう,がくこう,かっこう,がっごう,1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-reading,N5,,,,,,,,,,,,私は毎朝七時に起きます。学校では友達と日本語を勉強します。,「私」は何時に起きますか。,七時,六時,八時,九時,1,誰と勉強しますか。,先生,友達,家族,一人,2,,,,,,,,,,,,,,,,,,,,,,,,
-reorder,N5,,,,,,私は___。,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,教室で,日本語,を,勉強する,,
+kanji4choice,N5,,,,,,「学校(がっこう)」の読み方として正しいものを選びなさい。,がっこう,がくこう,かっこう,がっごう,1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+reading,N5,,,,,,,,,,,,私は毎朝七時(しちじ)に起(お)きます。学校(がっこう)では友達と日本語を勉強(べんきょう)します。,「私」は何時に起きますか。,七時,六時,八時,九時,1,誰と勉強しますか。,先生,友達,家族,一人,2,,,,,,,,,,,,,,,,,,,,,,,,
+reorder,N5,,,,,,私は___。,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,教室(きょうしつ)で,日本語,を,勉強(べんきょう)する,,
 `;
-
 function stripBOM(text) {
   return (text || "").replace(/^\uFEFF/, "");
 }
@@ -469,7 +485,9 @@ export default function TeacherUpload() {
         </div>
 
         <div style={{ fontSize: 12, color: "var(--ink-soft)", lineHeight: 1.8, marginTop: 16, marginBottom: 28 }}>
-          <div><b>type</b>: vocab（単語）／ grammar（文法）／ kakitori（漢字書き取り・単漢字）／ vocab4choice（語彙4択）／ kanji4choice（漢字4択）／ reading（読解）／ reorder（並べ替え）</div>
+          <div><b>type</b>: flashcardReading（①フラッシュカード・読み方専用）／ flashcardMeaning（②フラッシュカード・意味専用）／ vocab4（③単語4択専用）／ kanji（④漢字読み方入力専用）／ grammar（⑤文法4択）／ kakitori（⑥漢字書き取り・単漢字）／ vocab4choice（⑦語彙4択）／ kanji4choice（⑧漢字4択）／ reading（⑨読解）／ reorder（⑩並べ替え）</div>
+          <div><b>①②③④が別のtypeに分かれた理由</b>：以前はvocab 1種類を①②③④共通で使っていましたが、例えば漢字を含まない語彙だと①（読み方カード）や④（漢字読み方入力）が成立しないため、それぞれ専用のtypeに分けました。同じ単語を複数のモードで使いたい場合は、typeを変えて複数行に分けて入力してください（word・reading・meaning・meaning_en・exampleの列は①②③④共通です）</div>
+          <div><b>vocab（従来のtype）</b>もそのまま使えます。vocabで登録した行は、これまで通り①②③④すべてに表示されます（今後は上記の専用typeを使うことをおすすめしますが、古いCSVを再アップロードしても問題ありません）</div>
           <div><b>kakitori行</b>は word 列に単漢字を1文字入れてください（例: 学）</div>
           <div><b>vocab4choice・kanji4choice行</b>はgrammarと同じくblank（問題文）・choice1〜4・answer（1〜4）を使用します。blankに___（アンダースコア3つ）を入れると空欄埋め形式に、入れなければ普通の設問文として表示されます</div>
           <div><b>___（アンダースコア3つ）</b>はgrammar・vocab4choice・kanji4choiceのblank、reorderのblankのどこでも、空欄として色付きの下線で表示されます</div>

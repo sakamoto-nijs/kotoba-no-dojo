@@ -3,9 +3,9 @@ import { useRouter } from "next/router";
 import { supabase } from "../lib/supabaseClient";
 import NihongoApp from "../components/NihongoApp";
 
-function mapVocab(rows) {
+function mapVocab(rows, type) {
   return rows.map((r) => ({
-    id: r.id, type: "vocab", level: r.level,
+    id: r.id, type: type || r.type, level: r.level,
     word: r.word, reading: r.reading, meaning: r.meaning,
     meaningEn: r.meaning_en, example: r.example,
   }));
@@ -58,7 +58,10 @@ export default function AppPage() {
   const [ready, setReady] = useState(false);
   const [studentId, setStudentId] = useState(null);
   const [studentName, setStudentName] = useState("");
-  const [initialVocab, setInitialVocab] = useState([]);
+  const [initialFlashcardReading, setInitialFlashcardReading] = useState([]);
+  const [initialFlashcardMeaning, setInitialFlashcardMeaning] = useState([]);
+  const [initialVocab4, setInitialVocab4] = useState([]);
+  const [initialKanji, setInitialKanji] = useState([]);
   const [initialGrammar, setInitialGrammar] = useState([]);
   const [initialKakitori, setInitialKakitori] = useState([]);
   const [initialVocab4Choice, setInitialVocab4Choice] = useState([]);
@@ -79,7 +82,11 @@ export default function AppPage() {
 
       const { data: questions } = await supabase.from("questions").select("*");
       const rows = questions || [];
-      setInitialVocab(mapVocab(rows.filter((r) => r.type === "vocab")));
+      // 従来の type='vocab' は後方互換のため①②③④すべてに含める（新しい専用typeと併用可能）
+      setInitialFlashcardReading(mapVocab(rows.filter((r) => r.type === "vocab" || r.type === "flashcardReading"), "flashcardReading"));
+      setInitialFlashcardMeaning(mapVocab(rows.filter((r) => r.type === "vocab" || r.type === "flashcardMeaning"), "flashcardMeaning"));
+      setInitialVocab4(mapVocab(rows.filter((r) => r.type === "vocab" || r.type === "vocab4"), "vocab4"));
+      setInitialKanji(mapVocab(rows.filter((r) => r.type === "vocab" || r.type === "kanji"), "kanji"));
       setInitialGrammar(mapGrammar(rows.filter((r) => r.type === "grammar")));
       setInitialKakitori(mapKakitori(rows.filter((r) => r.type === "kakitori")));
       setInitialVocab4Choice(mapBlankChoice(rows.filter((r) => r.type === "vocab4choice"), "vocab4choice"));
@@ -130,7 +137,10 @@ export default function AppPage() {
 
   return (
     <NihongoApp
-      initialVocab={initialVocab}
+      initialFlashcardReading={initialFlashcardReading}
+      initialFlashcardMeaning={initialFlashcardMeaning}
+      initialVocab4={initialVocab4}
+      initialKanji={initialKanji}
       initialGrammar={initialGrammar}
       initialKakitori={initialKakitori}
       initialVocab4Choice={initialVocab4Choice}

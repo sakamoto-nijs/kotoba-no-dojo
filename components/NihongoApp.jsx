@@ -97,7 +97,7 @@ const MODE_TITLES = {
   flashcardMeaning: "② フラッシュカード（意味）",
   vocab4: "③ 単語4択問題",
   kanji: "④ 漢字読み方入力",
-  grammar4: "⑤ 文法穴埋め",
+  grammar4: "⑤ 文法4択問題",
   kakitori: "⑥ 漢字書き取り",
   vocab4choice: "⑦ 語彙4択問題",
   kanji4choice: "⑧ 漢字4択問題",
@@ -983,7 +983,7 @@ function KakitoriMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
   );
 }
 
-// ⑦⑧ 語彙4択・漢字4択（教員がCSVで問題文・選択肢4つ・正解番号を直接入力する。形式は⑤文法穴埋めと同じ）
+// ⑦⑧ 語彙4択・漢字4択（教員がCSVで問題文・選択肢4つ・正解番号を直接入力する。形式は⑤文法4択問題と同じ）
 function BlankChoiceQuizMode({ modeKey, list, level, favSet, onToggleFav, onAnswer, onExit }) {
   const title = `${MODE_TITLES[modeKey]}（${level}）`;
   const [questions, setQuestions] = useState(() => shuffle(list));
@@ -1014,7 +1014,7 @@ function BlankChoiceQuizMode({ modeKey, list, level, favSet, onToggleFav, onAnsw
     );
   }
 
-  // blankに「___」があれば文法穴埋めと同じ「空欄埋め」表示、なければ普通の設問文として表示する
+  // blankに「___」があれば文法4択問題と同じ「空欄埋め」表示、なければ普通の設問文として表示する
   const hasBlank = current.blank && current.blank.includes("___");
   const parts = hasBlank ? current.blank.split("___") : [current.blank, ""];
 
@@ -1381,7 +1381,10 @@ function ImportPanel({ onImport, onExit }) {
 const MODE_KEYS = Object.keys(MODE_TITLES);
 
 export default function App({
-  initialVocab,
+  initialFlashcardReading,
+  initialFlashcardMeaning,
+  initialVocab4,
+  initialKanji,
   initialGrammar,
   initialKakitori,
   initialVocab4Choice,
@@ -1395,7 +1398,10 @@ export default function App({
   myPageHref,
   allowLocalImport = true,
 } = {}) {
-  const [vocabList, setVocabList] = useState(initialVocab && initialVocab.length ? initialVocab : SAMPLE_VOCAB);
+  const [flashcardReadingList, setFlashcardReadingList] = useState(initialFlashcardReading && initialFlashcardReading.length ? initialFlashcardReading : SAMPLE_VOCAB);
+  const [flashcardMeaningList, setFlashcardMeaningList] = useState(initialFlashcardMeaning && initialFlashcardMeaning.length ? initialFlashcardMeaning : SAMPLE_VOCAB);
+  const [vocab4List, setVocab4List] = useState(initialVocab4 && initialVocab4.length ? initialVocab4 : SAMPLE_VOCAB);
+  const [kanjiList, setKanjiList] = useState(initialKanji && initialKanji.length ? initialKanji : SAMPLE_VOCAB);
   const [grammarList, setGrammarList] = useState(initialGrammar && initialGrammar.length ? initialGrammar : SAMPLE_GRAMMAR);
   const [kakitoriList] = useState(initialKakitori && initialKakitori.length ? initialKakitori : KAKITORI_DATA);
   const [vocab4ChoiceList] = useState(initialVocab4Choice && initialVocab4Choice.length ? initialVocab4Choice : SAMPLE_VOCAB4CHOICE);
@@ -1406,8 +1412,11 @@ export default function App({
   const [pendingMode, setPendingMode] = useState(null);
   const [selectedLevel, setSelectedLevel] = useState(null);
   const [toast, setToast] = useState(null);
-  const [lang, setLang] = useState("ja");
-  const [favVocab, setFavVocab] = useState(() => new Set());
+  const [lang, setLang] = useState("en");
+  const [favFlashcardReading, setFavFlashcardReading] = useState(() => new Set());
+  const [favFlashcardMeaning, setFavFlashcardMeaning] = useState(() => new Set());
+  const [favVocab4, setFavVocab4] = useState(() => new Set());
+  const [favKanji, setFavKanji] = useState(() => new Set());
   const [favGrammar, setFavGrammar] = useState(() => new Set());
   const [favKakitori, setFavKakitori] = useState(() => new Set());
   const [favVocab4Choice, setFavVocab4Choice] = useState(() => new Set());
@@ -1447,8 +1456,29 @@ export default function App({
     if (onAnswer) onAnswer(...args);
   };
 
-  const toggleFavVocab = (word) => {
-    setFavVocab((prev) => {
+  const toggleFavFlashcardReading = (word) => {
+    setFavFlashcardReading((prev) => {
+      const next = new Set(prev);
+      next.has(word) ? next.delete(word) : next.add(word);
+      return next;
+    });
+  };
+  const toggleFavFlashcardMeaning = (word) => {
+    setFavFlashcardMeaning((prev) => {
+      const next = new Set(prev);
+      next.has(word) ? next.delete(word) : next.add(word);
+      return next;
+    });
+  };
+  const toggleFavVocab4 = (word) => {
+    setFavVocab4((prev) => {
+      const next = new Set(prev);
+      next.has(word) ? next.delete(word) : next.add(word);
+      return next;
+    });
+  };
+  const toggleFavKanji = (word) => {
+    setFavKanji((prev) => {
       const next = new Set(prev);
       next.has(word) ? next.delete(word) : next.add(word);
       return next;
@@ -1498,9 +1528,17 @@ export default function App({
   };
 
   const handleImport = ({ vocab, grammar, problems }) => {
-    if (vocab.length) setVocabList(vocab);
+    if (vocab.length) {
+      setFlashcardReadingList(vocab);
+      setFlashcardMeaningList(vocab);
+      setVocab4List(vocab);
+      setKanjiList(vocab);
+    }
     if (grammar.length) setGrammarList(grammar);
-    setFavVocab(new Set());
+    setFavFlashcardReading(new Set());
+    setFavFlashcardMeaning(new Set());
+    setFavVocab4(new Set());
+    setFavKanji(new Set());
     setFavGrammar(new Set());
     setToast(`インポート完了：単語${vocab.length}件、文法${grammar.length}件${problems.length ? `（スキップ${problems.length}件）` : ""}`);
     setScreen("home");
@@ -1508,9 +1546,15 @@ export default function App({
   };
 
   const resetSample = () => {
-    setVocabList(SAMPLE_VOCAB);
+    setFlashcardReadingList(SAMPLE_VOCAB);
+    setFlashcardMeaningList(SAMPLE_VOCAB);
+    setVocab4List(SAMPLE_VOCAB);
+    setKanjiList(SAMPLE_VOCAB);
     setGrammarList(SAMPLE_GRAMMAR);
-    setFavVocab(new Set());
+    setFavFlashcardReading(new Set());
+    setFavFlashcardMeaning(new Set());
+    setFavVocab4(new Set());
+    setFavKanji(new Set());
     setFavGrammar(new Set());
     setToast("サンプルデータに戻しました");
     setTimeout(() => setToast(null), 3000);
@@ -1522,10 +1566,10 @@ export default function App({
   const backToHome = () => { setPendingMode(null); setSelectedLevel(null); setScreen("home"); };
 
   const modes = [
-    { key: "flashcardReading", title: MODE_TITLES.flashcardReading, desc: "単語を見て読み方を覚える", icon: BookOpen, disabled: vocabList.length === 0 },
-    { key: "flashcardMeaning", title: MODE_TITLES.flashcardMeaning, desc: "単語を見て意味を覚える", icon: Languages, disabled: vocabList.length === 0 },
-    { key: "vocab4", title: MODE_TITLES.vocab4, desc: "意味を見て単語を選ぶ", icon: ListChecks, disabled: vocabList.length < 4 },
-    { key: "kanji", title: MODE_TITLES.kanji, desc: "ひらがなで読み方を入力", icon: Type, disabled: vocabList.length === 0 },
+    { key: "flashcardReading", title: MODE_TITLES.flashcardReading, desc: "単語を見て読み方を覚える", icon: BookOpen, disabled: flashcardReadingList.length === 0 },
+    { key: "flashcardMeaning", title: MODE_TITLES.flashcardMeaning, desc: "単語を見て意味を覚える", icon: Languages, disabled: flashcardMeaningList.length === 0 },
+    { key: "vocab4", title: MODE_TITLES.vocab4, desc: "意味を見て単語を選ぶ", icon: ListChecks, disabled: vocab4List.length < 4 },
+    { key: "kanji", title: MODE_TITLES.kanji, desc: "ひらがなで読み方を入力", icon: Type, disabled: kanjiList.length === 0 },
     { key: "grammar4", title: MODE_TITLES.grammar4, desc: "括弧に入る言葉を4択で選ぶ", icon: PenLine, disabled: grammarList.length === 0 },
     { key: "kakitori", title: MODE_TITLES.kakitori, desc: "手書きで漢字を書いて答える", icon: PenTool, disabled: kakitoriList.length === 0 },
     { key: "vocab4choice", title: MODE_TITLES.vocab4choice, desc: "語彙の問題を4択で選ぶ", icon: BookOpenCheck, disabled: vocab4ChoiceList.length === 0 },
@@ -1536,10 +1580,10 @@ export default function App({
 
   // レベル選択画面（LevelSelect）に渡すデータソースの定義。モードごとに参照するリスト・お気に入り集合・IDの取り方・必要最低問題数が異なる
   const modeDataMap = {
-    flashcardReading: { fullList: vocabList, favSet: favVocab, idOf: (v) => v.word, minRequired: 1 },
-    flashcardMeaning: { fullList: vocabList, favSet: favVocab, idOf: (v) => v.word, minRequired: 1 },
-    vocab4: { fullList: vocabList, favSet: favVocab, idOf: (v) => v.word, minRequired: 4 },
-    kanji: { fullList: vocabList, favSet: favVocab, idOf: (v) => v.word, minRequired: 1 },
+    flashcardReading: { fullList: flashcardReadingList, favSet: favFlashcardReading, idOf: (v) => v.word, minRequired: 1 },
+    flashcardMeaning: { fullList: flashcardMeaningList, favSet: favFlashcardMeaning, idOf: (v) => v.word, minRequired: 1 },
+    vocab4: { fullList: vocab4List, favSet: favVocab4, idOf: (v) => v.word, minRequired: 4 },
+    kanji: { fullList: kanjiList, favSet: favKanji, idOf: (v) => v.word, minRequired: 1 },
     grammar4: { fullList: grammarList, favSet: favGrammar, idOf: (g) => g.blank, minRequired: 1 },
     kakitori: { fullList: kakitoriList, favSet: favKakitori, idOf: (k) => k.char, minRequired: 1 },
     vocab4choice: { fullList: vocab4ChoiceList, favSet: favVocab4Choice, idOf: (q) => q.id || q.blank, minRequired: 1 },
@@ -1548,9 +1592,18 @@ export default function App({
     reorder: { fullList: reorderList, favSet: favReorder, idOf: (q) => q.id || q.blank, minRequired: 1 },
   };
 
-  const levelVocab =
-    selectedLevel === "FAV" ? vocabList.filter((v) => favVocab.has(v.word)) :
-    selectedLevel ? vocabList.filter((v) => v.level === selectedLevel) : [];
+  const levelFlashcardReading =
+    selectedLevel === "FAV" ? flashcardReadingList.filter((v) => favFlashcardReading.has(v.word)) :
+    selectedLevel ? flashcardReadingList.filter((v) => v.level === selectedLevel) : [];
+  const levelFlashcardMeaning =
+    selectedLevel === "FAV" ? flashcardMeaningList.filter((v) => favFlashcardMeaning.has(v.word)) :
+    selectedLevel ? flashcardMeaningList.filter((v) => v.level === selectedLevel) : [];
+  const levelVocab4 =
+    selectedLevel === "FAV" ? vocab4List.filter((v) => favVocab4.has(v.word)) :
+    selectedLevel ? vocab4List.filter((v) => v.level === selectedLevel) : [];
+  const levelKanji =
+    selectedLevel === "FAV" ? kanjiList.filter((v) => favKanji.has(v.word)) :
+    selectedLevel ? kanjiList.filter((v) => v.level === selectedLevel) : [];
   const levelGrammar =
     selectedLevel === "FAV" ? grammarList.filter((g) => favGrammar.has(g.blank)) :
     selectedLevel ? grammarList.filter((g) => g.level === selectedLevel) : [];
@@ -1613,7 +1666,7 @@ export default function App({
               ことば<span style={{ color: COLORS.vermilion }}>の道場</span>
             </div>
             <div style={{ color: COLORS.inkSoft, fontSize: 13, marginTop: 8, fontFamily: SANS, letterSpacing: "0.04em" }}>日本語学習者向け 単語・文法トレーニング（試作版）</div>
-            <div style={{ color: COLORS.inkFaint, fontSize: 12, marginTop: 10, fontFamily: SANS }}>単語 {vocabList.length}件 ・ 文法 {grammarList.length}件（N5〜N1）</div>
+            <div style={{ color: COLORS.inkFaint, fontSize: 12, marginTop: 10, fontFamily: SANS }}>文法 {grammarList.length}件（N5〜N1）</div>
 
             <div className="flex items-center justify-center gap-2 mt-4">
               <span style={{ fontFamily: SANS, fontSize: 12, color: COLORS.inkFaint }}>意味の表示言語:</span>
@@ -1682,10 +1735,10 @@ export default function App({
         />
       )}
 
-      {screen === "flashcardReading" && <FlashcardMode vocab={levelVocab} level={selectedLevel} lang={lang} cardMode="reading" favVocab={favVocab} onToggleFav={toggleFavVocab} onCardAdvance={bumpReviewCount} onExit={backToLevel} />}
-      {screen === "flashcardMeaning" && <FlashcardMode vocab={levelVocab} level={selectedLevel} lang={lang} cardMode="meaning" favVocab={favVocab} onToggleFav={toggleFavVocab} onCardAdvance={bumpReviewCount} onExit={backToLevel} />}
-      {screen === "vocab4" && <Vocab4Mode vocab={levelVocab} level={selectedLevel} lang={lang} favVocab={favVocab} onToggleFav={toggleFavVocab} onAnswer={reportAnswer} onExit={backToLevel} />}
-      {screen === "kanji" && <KanjiInputMode vocab={levelVocab} level={selectedLevel} favVocab={favVocab} onToggleFav={toggleFavVocab} onAnswer={reportAnswer} onExit={backToLevel} />}
+      {screen === "flashcardReading" && <FlashcardMode vocab={levelFlashcardReading} level={selectedLevel} lang={lang} cardMode="reading" favVocab={favFlashcardReading} onToggleFav={toggleFavFlashcardReading} onCardAdvance={bumpReviewCount} onExit={backToLevel} />}
+      {screen === "flashcardMeaning" && <FlashcardMode vocab={levelFlashcardMeaning} level={selectedLevel} lang={lang} cardMode="meaning" favVocab={favFlashcardMeaning} onToggleFav={toggleFavFlashcardMeaning} onCardAdvance={bumpReviewCount} onExit={backToLevel} />}
+      {screen === "vocab4" && <Vocab4Mode vocab={levelVocab4} level={selectedLevel} lang={lang} favVocab={favVocab4} onToggleFav={toggleFavVocab4} onAnswer={reportAnswer} onExit={backToLevel} />}
+      {screen === "kanji" && <KanjiInputMode vocab={levelKanji} level={selectedLevel} favVocab={favKanji} onToggleFav={toggleFavKanji} onAnswer={reportAnswer} onExit={backToLevel} />}
       {screen === "grammar4" && <GrammarMode grammar={levelGrammar} level={selectedLevel} favGrammar={favGrammar} onToggleFav={toggleFavGrammar} onAnswer={reportAnswer} onExit={backToLevel} />}
       {screen === "kakitori" && <KakitoriMode list={levelKakitori} level={selectedLevel} favSet={favKakitori} onToggleFav={toggleFavKakitori} onAnswer={reportAnswer} onExit={backToLevel} />}
       {screen === "vocab4choice" && <BlankChoiceQuizMode modeKey="vocab4choice" list={levelVocab4Choice} level={selectedLevel} favSet={favVocab4Choice} onToggleFav={toggleFavVocab4Choice} onAnswer={reportAnswer} onExit={backToLevel} />}

@@ -42,15 +42,20 @@ begin
 end $$;
 
 -- 3. 問題データ（単語・文法・漢字書き取り・語彙4択・漢字4択・読解・並べ替え　共通テーブル）
+-- 単語系は、以前は type='vocab' 1種類が①②③④すべてに使われていたが、
+-- （例：漢字を含まない語彙だと①④の「読み方」練習が成立しない、という問題があったため）
+-- ①②③④それぞれ専用の種類（flashcardReading / flashcardMeaning / vocab4 / kanji）に分離した。
+-- 'vocab'は後方互換のため残しており、引き続き①②③④すべてに使われる（新規にアップロードする場合は
+-- 専用の種類を使うことを推奨するが、'vocab'のまま使い続けることも可能）。
 create table if not exists questions (
   id uuid primary key default gen_random_uuid(),
-  type text not null check (type in ('vocab', 'grammar', 'kakitori', 'vocab4choice', 'kanji4choice', 'reading', 'reorder')),
+  type text not null check (type in ('vocab', 'flashcardReading', 'flashcardMeaning', 'vocab4', 'kanji', 'grammar', 'kakitori', 'vocab4choice', 'kanji4choice', 'reading', 'reorder')),
   level text not null check (level in ('N5', 'N4', 'N3', 'N2', 'N1')),
-  word text,          -- vocab用
-  reading text,       -- vocab / kakitori用
-  meaning text,       -- vocab / kakitori用
-  meaning_en text,    -- vocab用（任意）
-  example text,       -- vocab用（任意）
+  word text,          -- vocab系（vocab/flashcardReading/flashcardMeaning/vocab4/kanji）用
+  reading text,       -- vocab系 / kakitori用
+  meaning text,       -- vocab系 / kakitori用
+  meaning_en text,    -- vocab系用（任意）
+  example text,       -- vocab系用（任意）
   blank text,         -- grammar / vocab4choice / kanji4choice用（問題文）、reorder用（___を含む例文）
   choice1 text, choice2 text, choice3 text, choice4 text, -- grammar / vocab4choice / kanji4choice用
   answer int,         -- grammar / vocab4choice / kanji4choice用（1〜4）
@@ -68,7 +73,7 @@ alter table questions add column if not exists cards jsonb;
 -- 既存プロジェクトのtype制約に新しい種類を追加する（Postgresのデフォルト命名: questions_type_check）
 alter table questions drop constraint if exists questions_type_check;
 alter table questions add constraint questions_type_check
-  check (type in ('vocab', 'grammar', 'kakitori', 'vocab4choice', 'kanji4choice', 'reading', 'reorder'));
+  check (type in ('vocab', 'flashcardReading', 'flashcardMeaning', 'vocab4', 'kanji', 'grammar', 'kakitori', 'vocab4choice', 'kanji4choice', 'reading', 'reorder'));
 
 -- 3-1. CSVアップロード履歴（教員が「問題管理」で取り込んだCSVを1回ずつ記録する）
 --      raw_csv には元のCSVをそのまま保存し、後から「そのままの内容」をダウンロードできるようにする。

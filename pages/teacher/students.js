@@ -6,7 +6,19 @@ import { MODE_LABELS, formatDateTime } from "../../lib/statsHelpers";
 
 const R = "3px";
 const SHADOW = "0 2px 0 rgba(36,31,26,0.10)";
-const TYPE_LABELS = { vocab: "単語", grammar: "文法", kakitori: "漢字書き取り", vocab4choice: "語彙4択", kanji4choice: "漢字4択", reading: "読解", reorder: "並べ替え" };
+const TYPE_LABELS = {
+  vocab: "単語（共通）",
+  flashcardReading: "単語（①専用）",
+  flashcardMeaning: "単語（②専用）",
+  vocab4: "単語（③専用）",
+  kanji: "単語（④専用）",
+  grammar: "文法",
+  kakitori: "漢字書き取り",
+  vocab4choice: "語彙4択",
+  kanji4choice: "漢字4択",
+  reading: "読解",
+  reorder: "並べ替え",
+};
 
 const BULK_TEMPLATE = `studentCode,displayName,password,className
 s2026001,山田太郎,pass1234,クラスA
