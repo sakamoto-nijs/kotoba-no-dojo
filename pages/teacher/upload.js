@@ -25,6 +25,23 @@ const VALID_TYPES = [...WORD_BASED_TYPES, "grammar", "kakitori", "vocab4choice",
 const READING_Q_MAX = 5;
 const REORDER_CARD_MAX = 6;
 const REORDER_CARD_MIN = 3;
+// .in()フィルタに大量のIDを一度に渡すとURLが長くなりすぎ、Supabase側で
+// 「Bad Request」になることがあるため、一定件数ずつに分割して処理する。
+const ID_CHUNK_SIZE = 80;
+
+function chunkArray(arr, size) {
+  const chunks = [];
+  for (let i = 0; i < arr.length; i += size) chunks.push(arr.slice(i, i + size));
+  return chunks;
+}
+
+// 問題を安全にまとめて削除する（IDが多い場合は分割して削除する）
+async function deleteQuestionsByIds(ids) {
+  for (const chunk of chunkArray(ids, ID_CHUNK_SIZE)) {
+    const { error } = await supabase.from("questions").delete().in("id", chunk);
+    if (error) throw error;
+  }
+}
 
 // blank・choice1〜4・answerを使う4択形式のバリデーション（grammar / vocab4choice / kanji4choiceで共通）
 function parseBlankChoiceRow(row, type, level, idx, problems) {
@@ -157,11 +174,15 @@ function toProgressBackupCSV(rows) {
 // （progressテーブルは questions を外部キーで参照しており、questions削除時にcascadeで消えるため）
 async function backupProgressForQuestionIds(ids, filenameHint) {
   if (!ids || ids.length === 0) return 0;
-  const { data, error } = await supabase
-    .from("progress")
-    .select("correct, favorited, answered_at, mode, question_id, questions(type, level, word, blank, passage), profiles(student_code, display_name)")
-    .in("question_id", ids);
-  if (error) throw error;
+  let data = [];
+  for (const chunk of chunkArray(ids, ID_CHUNK_SIZE)) {
+    const { data: chunkData, error } = await supabase
+      .from("progress")
+      .select("correct, favorited, answered_at, mode, question_id, questions(type, level, word, blank, passage), profiles(student_code, display_name)")
+      .in("question_id", chunk);
+    if (error) throw error;
+    if (chunkData) data = data.concat(chunkData);
+  }
   if (!data || data.length === 0) return 0;
   const csv = toProgressBackupCSV(data);
   const stamp = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 14);
@@ -280,8 +301,7 @@ export default function TeacherUpload() {
       await supabase.from("csv_uploads").update({ deleted_at: new Date().toISOString() }).is("deleted_at", null);
 
       if (existingIds.length) {
-        const { error: delErr } = await supabase.from("questions").delete().in("id", existingIds);
-        if (delErr) throw delErr;
+        await deleteQuestionsByIds(existingIds);
       }
 
       const { data: uploadRec, error: upErr } = await supabase
@@ -355,8 +375,7 @@ export default function TeacherUpload() {
 
       // 3. 問題データを全削除
       if (existingIds.length) {
-        const { error: delErr } = await supabase.from("questions").delete().in("id", existingIds);
-        if (delErr) throw delErr;
+        await deleteQuestionsByIds(existingIds);
       }
 
       // 4. アップロード履歴も全削除（「新規に追加」と違い、履歴自体を空にする）
@@ -396,8 +415,7 @@ export default function TeacherUpload() {
       let backedUpCount = 0;
       if (ids.length) {
         backedUpCount = await backupProgressForQuestionIds(ids, upload.file_name);
-        const { error: delErr } = await supabase.from("questions").delete().in("id", ids);
-        if (delErr) throw delErr;
+        await deleteQuestionsByIds(ids);
       }
       await supabase.from("csv_uploads").update({ deleted_at: new Date().toISOString() }).eq("id", upload.id);
 
