@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../../lib/supabaseClient";
+import { fetchAllRows } from "../../lib/fetchAllRows";
 import {
   MODE_LABELS, QUIZ_MODES, FLASHCARD_MODES, ALL_MODES, LEVEL_KEYS,
   REVIEW_COUNT_DEFINITION, buildStats, formatDuration, formatDateTime,
@@ -121,20 +122,22 @@ export default function TeacherDashboard() {
       setClasses(classList || []);
       const classNameById = new Map((classList || []).map((c) => [c.id, c.name]));
 
-      const { data: students } = await supabase
-        .from("profiles")
-        .select("id, display_name, student_code, class_id, current_password_plaintext, created_at")
-        .eq("created_by", session.user.id)
-        .eq("role", "student")
-        .order("created_at", { ascending: false });
+      const students = await fetchAllRows(() =>
+        supabase
+          .from("profiles")
+          .select("id, display_name, student_code, class_id, current_password_plaintext, created_at")
+          .eq("created_by", session.user.id)
+          .eq("role", "student")
+          .order("created_at", { ascending: false })
+      );
 
       if (!students || students.length === 0) { setRows([]); setLoading(false); return; }
 
       const studentIds = students.map((s) => s.id);
-      const [{ data: progress }, { data: sessions }, { data: questions }] = await Promise.all([
-        supabase.from("progress").select("student_id, question_id, mode, correct, answered_at").in("student_id", studentIds),
-        supabase.from("study_sessions").select("student_id, mode, level, items, duration_seconds, started_at").in("student_id", studentIds),
-        supabase.from("questions").select("id, level"),
+      const [progress, sessions, questions] = await Promise.all([
+        fetchAllRows(() => supabase.from("progress").select("student_id, question_id, mode, correct, answered_at").in("student_id", studentIds)),
+        fetchAllRows(() => supabase.from("study_sessions").select("student_id, mode, level, items, duration_seconds, started_at").in("student_id", studentIds)),
+        fetchAllRows(() => supabase.from("questions").select("id, level")),
       ]);
       const questionLevelMap = new Map((questions || []).map((q) => [q.id, q.level]));
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../lib/supabaseClient";
+import { fetchAllRows } from "../lib/fetchAllRows";
 import {
   MODE_LABELS, QUIZ_MODES, FLASHCARD_MODES, LEVEL_KEYS,
   REVIEW_COUNT_DEFINITION, buildStats, formatDuration, formatDateTime,
@@ -33,10 +34,10 @@ export default function MyPage() {
         setClassName(cls?.name || "");
       }
 
-      const [{ data: progress }, { data: sessions }, { data: questions }] = await Promise.all([
-        supabase.from("progress").select("question_id, mode, correct, answered_at").eq("student_id", session.user.id),
-        supabase.from("study_sessions").select("mode, level, items, duration_seconds, started_at").eq("student_id", session.user.id),
-        supabase.from("questions").select("id, level"),
+      const [progress, sessions, questions] = await Promise.all([
+        fetchAllRows(() => supabase.from("progress").select("question_id, mode, correct, answered_at").eq("student_id", session.user.id)),
+        fetchAllRows(() => supabase.from("study_sessions").select("mode, level, items, duration_seconds, started_at").eq("student_id", session.user.id)),
+        fetchAllRows(() => supabase.from("questions").select("id, level")),
       ]);
       const questionLevelMap = new Map((questions || []).map((q) => [q.id, q.level]));
       setStats(buildStats({ progressRows: progress || [], sessionRows: sessions || [], questionLevelMap }));

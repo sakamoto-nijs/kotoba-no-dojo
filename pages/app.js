@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../lib/supabaseClient";
+import { fetchAllRows } from "../lib/fetchAllRows";
 import NihongoApp from "../components/NihongoApp";
 
 function mapVocab(rows, type) {
@@ -80,8 +81,7 @@ export default function AppPage() {
       setStudentId(session.user.id);
       setStudentName(profile.display_name);
 
-      const { data: questions } = await supabase.from("questions").select("*");
-      const rows = questions || [];
+      const rows = await fetchAllRows(() => supabase.from("questions").select("*"));
       // 従来の type='vocab' は後方互換のため①②③④すべてに含める（新しい専用typeと併用可能）
       setInitialFlashcardReading(mapVocab(rows.filter((r) => r.type === "vocab" || r.type === "flashcardReading"), "flashcardReading"));
       setInitialFlashcardMeaning(mapVocab(rows.filter((r) => r.type === "vocab" || r.type === "flashcardMeaning"), "flashcardMeaning"));

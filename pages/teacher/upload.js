@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/router";
 import Papa from "papaparse";
 import { supabase } from "../../lib/supabaseClient";
+import { fetchAllRows } from "../../lib/fetchAllRows";
 import { MODE_LABELS, formatDateTime } from "../../lib/statsHelpers";
 
 const R = "3px";
@@ -288,8 +289,7 @@ export default function TeacherUpload() {
     setConfirmBusy(true);
     setLoading(true);
     try {
-      const { data: existingQs, error: exErr } = await supabase.from("questions").select("id");
-      if (exErr) throw exErr;
+      const existingQs = await fetchAllRows(() => supabase.from("questions").select("id"));
       const existingIds = (existingQs || []).map((q) => q.id);
 
       let backedUpCount = 0;
@@ -356,8 +356,7 @@ export default function TeacherUpload() {
     setConfirmBusy(true);
     setLoading(true);
     try {
-      const { data: existingQs, error: exErr } = await supabase.from("questions").select("id");
-      if (exErr) throw exErr;
+      const existingQs = await fetchAllRows(() => supabase.from("questions").select("id"));
       const existingIds = (existingQs || []).map((q) => q.id);
 
       // 1. 削除される問題に紐づく学習記録を、削除前にバックアップCSVとしてダウンロード
@@ -408,8 +407,7 @@ export default function TeacherUpload() {
     setConfirmBusy(true);
     setBatchBusyId(upload.id);
     try {
-      const { data: qs, error: qErr } = await supabase.from("questions").select("id").eq("upload_id", upload.id);
-      if (qErr) throw qErr;
+      const qs = await fetchAllRows(() => supabase.from("questions").select("id").eq("upload_id", upload.id));
       const ids = (qs || []).map((q) => q.id);
 
       let backedUpCount = 0;

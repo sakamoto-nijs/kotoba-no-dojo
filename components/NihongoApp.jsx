@@ -1398,16 +1398,21 @@ export default function App({
   myPageHref,
   allowLocalImport = true,
 } = {}) {
-  const [flashcardReadingList, setFlashcardReadingList] = useState(initialFlashcardReading && initialFlashcardReading.length ? initialFlashcardReading : SAMPLE_VOCAB);
-  const [flashcardMeaningList, setFlashcardMeaningList] = useState(initialFlashcardMeaning && initialFlashcardMeaning.length ? initialFlashcardMeaning : SAMPLE_VOCAB);
-  const [vocab4List, setVocab4List] = useState(initialVocab4 && initialVocab4.length ? initialVocab4 : SAMPLE_VOCAB);
-  const [kanjiList, setKanjiList] = useState(initialKanji && initialKanji.length ? initialKanji : SAMPLE_VOCAB);
-  const [grammarList, setGrammarList] = useState(initialGrammar && initialGrammar.length ? initialGrammar : SAMPLE_GRAMMAR);
-  const [kakitoriList] = useState(initialKakitori && initialKakitori.length ? initialKakitori : KAKITORI_DATA);
-  const [vocab4ChoiceList] = useState(initialVocab4Choice && initialVocab4Choice.length ? initialVocab4Choice : SAMPLE_VOCAB4CHOICE);
-  const [kanji4ChoiceList] = useState(initialKanji4Choice && initialKanji4Choice.length ? initialKanji4Choice : SAMPLE_KANJI4CHOICE);
-  const [readingList] = useState(initialReading && initialReading.length ? initialReading : SAMPLE_READING);
-  const [reorderList] = useState(initialReorder && initialReorder.length ? initialReorder : SAMPLE_REORDER);
+  // 本番環境（allowLocalImport=false）では、問題が0件のカテゴリーはサンプルデータへの
+  // フォールバックをせず、そのまま「利用不可（0件）」として扱う。
+  // サンプルデータへのフォールバックは、バックエンドを持たない単体デモ表示（allowLocalImport=true）でのみ行う。
+  // これにより、教員が問題を全削除した場合に、学生側に組み込みのサンプル問題が
+  // 誤って表示され続けてしまう（実際には消えているのに問題が残っているように見える）ことを防ぐ。
+  const [flashcardReadingList, setFlashcardReadingList] = useState(initialFlashcardReading && initialFlashcardReading.length ? initialFlashcardReading : (allowLocalImport ? SAMPLE_VOCAB : []));
+  const [flashcardMeaningList, setFlashcardMeaningList] = useState(initialFlashcardMeaning && initialFlashcardMeaning.length ? initialFlashcardMeaning : (allowLocalImport ? SAMPLE_VOCAB : []));
+  const [vocab4List, setVocab4List] = useState(initialVocab4 && initialVocab4.length ? initialVocab4 : (allowLocalImport ? SAMPLE_VOCAB : []));
+  const [kanjiList, setKanjiList] = useState(initialKanji && initialKanji.length ? initialKanji : (allowLocalImport ? SAMPLE_VOCAB : []));
+  const [grammarList, setGrammarList] = useState(initialGrammar && initialGrammar.length ? initialGrammar : (allowLocalImport ? SAMPLE_GRAMMAR : []));
+  const [kakitoriList] = useState(initialKakitori && initialKakitori.length ? initialKakitori : (allowLocalImport ? KAKITORI_DATA : []));
+  const [vocab4ChoiceList] = useState(initialVocab4Choice && initialVocab4Choice.length ? initialVocab4Choice : (allowLocalImport ? SAMPLE_VOCAB4CHOICE : []));
+  const [kanji4ChoiceList] = useState(initialKanji4Choice && initialKanji4Choice.length ? initialKanji4Choice : (allowLocalImport ? SAMPLE_KANJI4CHOICE : []));
+  const [readingList] = useState(initialReading && initialReading.length ? initialReading : (allowLocalImport ? SAMPLE_READING : []));
+  const [reorderList] = useState(initialReorder && initialReorder.length ? initialReorder : (allowLocalImport ? SAMPLE_REORDER : []));
   const [screen, setScreen] = useState("home");
   const [pendingMode, setPendingMode] = useState(null);
   const [selectedLevel, setSelectedLevel] = useState(null);
