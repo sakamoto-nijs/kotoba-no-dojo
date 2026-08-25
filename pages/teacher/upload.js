@@ -240,8 +240,10 @@ export default function TeacherUpload() {
   const [batchBusyId, setBatchBusyId] = useState(null);
   const fileRef = useRef(null);
 
-  const loadExistingCount = async () => {
-    const { count } = await supabase.from("questions").select("id", { count: "exact", head: true });
+  const loadExistingCount = async (sess) => {
+    const teacherId = (sess || session)?.user?.id;
+    if (!teacherId) return;
+    const { count } = await supabase.from("questions").select("id", { count: "exact", head: true }).eq("created_by", teacherId);
     setExistingCount(count ?? 0);
   };
 
@@ -260,7 +262,7 @@ export default function TeacherUpload() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.replace("/teacher/login"); return; }
       setSession(session);
-      await Promise.all([loadExistingCount(), loadHistory()]);
+      await Promise.all([loadExistingCount(session), loadHistory()]);
     })();
   }, [router]);
 
@@ -303,7 +305,7 @@ export default function TeacherUpload() {
     setConfirmBusy(true);
     setLoading(true);
     try {
-      const existingQs = await fetchAllRows(() => supabase.from("questions").select("id"));
+      const existingQs = await fetchAllRows(() => supabase.from("questions").select("id").eq("created_by", session.user.id));
       const existingIds = (existingQs || []).map((q) => q.id);
 
       let backedUpCount = 0;
@@ -370,7 +372,7 @@ export default function TeacherUpload() {
     setConfirmBusy(true);
     setLoading(true);
     try {
-      const existingQs = await fetchAllRows(() => supabase.from("questions").select("id"));
+      const existingQs = await fetchAllRows(() => supabase.from("questions").select("id").eq("created_by", session.user.id));
       const existingIds = (existingQs || []).map((q) => q.id);
 
       // 1. 削除される問題に紐づく学習記録を、削除前にバックアップCSVとしてダウンロード
@@ -421,7 +423,7 @@ export default function TeacherUpload() {
     setConfirmBusy(true);
     setBatchBusyId(upload.id);
     try {
-      const qs = await fetchAllRows(() => supabase.from("questions").select("id").eq("upload_id", upload.id));
+      const qs = await fetchAllRows(() => supabase.from("questions").select("id").eq("upload_id", upload.id).eq("created_by", session.user.id));
       const ids = (qs || []).map((q) => q.id);
 
       let backedUpCount = 0;
