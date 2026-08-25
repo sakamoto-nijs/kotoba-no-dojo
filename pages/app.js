@@ -81,8 +81,9 @@ export default function AppPage() {
 
       setStudentId(session.user.id);
       setStudentName(profile.display_name);
+      const teacherId = profile.created_by;
 
-      const rows = await fetchAllRows(() => supabase.from("questions").select("*"));
+      const rows = await fetchAllRows(() => supabase.from("questions").select("*").eq("created_by", teacherId));
       // 従来の type='vocab' は後方互換のため①②③④すべてに含める（新しい専用typeと併用可能）
       setInitialFlashcardReading(mapVocab(rows.filter((r) => r.type === "vocab" || r.type === "flashcardReading"), "flashcardReading"));
       setInitialFlashcardMeaning(mapVocab(rows.filter((r) => r.type === "vocab" || r.type === "flashcardMeaning"), "flashcardMeaning"));
@@ -95,7 +96,7 @@ export default function AppPage() {
       setInitialReading(mapReading(rows.filter((r) => r.type === "reading")));
       setInitialReorder(mapReorder(rows.filter((r) => r.type === "reorder")));
 
-      const setNameRows = await fetchAllRows(() => supabase.from("question_set_names").select("type, level, set_no, name"));
+      const setNameRows = await fetchAllRows(() => supabase.from("question_set_names").select("type, level, set_no, name").eq("teacher_id", teacherId));
       const nameMap = {};
       (setNameRows || []).forEach((r) => { nameMap[`${r.type}|${r.level}|${r.set_no}`] = r.name; });
       setSetNameMap(nameMap);
