@@ -137,7 +137,7 @@ export default function TeacherDashboard() {
       const [progress, sessions, questions] = await Promise.all([
         fetchAllRows(() => supabase.from("progress").select("student_id, question_id, mode, correct, answered_at").in("student_id", studentIds)),
         fetchAllRows(() => supabase.from("study_sessions").select("student_id, mode, level, items, duration_seconds, started_at").in("student_id", studentIds)),
-        fetchAllRows(() => supabase.from("questions").select("id, level")),
+        fetchAllRows(() => supabase.from("questions").select("id, level").eq("created_by", session.user.id)),
       ]);
       const questionLevelMap = new Map((questions || []).map((q) => [q.id, q.level]));
 
