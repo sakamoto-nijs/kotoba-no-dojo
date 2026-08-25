@@ -53,8 +53,8 @@ export default function QuestionSets() {
     setError(null); setMsg(null);
     try {
       const makeQuery = LEGACY_FALLBACK_TYPES.includes(category)
-        ? () => supabase.from("questions").select("set_no").eq("level", level).in("type", ["vocab", category])
-        : () => supabase.from("questions").select("set_no").eq("level", level).eq("type", category);
+        ? () => supabase.from("questions").select("set_no").eq("level", level).eq("created_by", session.user.id).in("type", ["vocab", category])
+        : () => supabase.from("questions").select("set_no").eq("level", level).eq("created_by", session.user.id).eq("type", category);
       const qs = await fetchAllRows(makeQuery);
       const c = {};
       (qs || []).forEach((q) => { const n = q.set_no || 1; c[n] = (c[n] || 0) + 1; });
