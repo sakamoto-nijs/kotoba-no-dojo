@@ -1,8 +1,3 @@
-# components/NihongoApp.jsx
-
-GitHubで `components/NihongoApp.jsx` を開き、中身を全部このコードで置き換えてください。
-
-```javascript
 import React, { useState, useRef, useMemo, useEffect } from "react";
 import Papa from "papaparse";
 import * as tf from "@tensorflow/tfjs";
@@ -1850,4 +1845,3 @@ export default function App({
     </div>
   );
 }
-```
