@@ -1,3 +1,8 @@
+# components/NihongoApp.jsx
+
+GitHubで `components/NihongoApp.jsx` を開き、中身を全部このコードで置き換えてください。
+
+```javascript
 import React, { useState, useRef, useMemo, useEffect } from "react";
 import Papa from "papaparse";
 import * as tf from "@tensorflow/tfjs";
@@ -214,6 +219,17 @@ function shuffle(arr) {
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
+}
+
+// 選択肢（choices）と正解番号（answer）の対応関係を保ったまま、選択肢の並び順だけをランダムにする。
+// grammar4・vocab4choice・kanji4choice・reading（各設問）で使用。
+function shuffleQuestionChoices(q) {
+  const order = shuffle(q.choices.map((_, i) => i));
+  return { ...q, choices: order.map((i) => q.choices[i]), answer: order.indexOf(q.answer) };
+}
+// 読解問題：1つの文章に含まれる設問（questions配列）すべてについて、選択肢の並び順をランダムにする
+function shufflePassageChoices(passage) {
+  return { ...passage, questions: passage.questions.map(shuffleQuestionChoices) };
 }
 
 // 文字数に応じてフラッシュカード等の主要テキストのフォントサイズを自動調整
@@ -807,7 +823,7 @@ function KanjiInputMode({ vocab, level, favVocab, onToggleFav, onAnswer, onExit 
 
 function GrammarMode({ grammar, level, favGrammar, onToggleFav, onAnswer, onExit }) {
   const title = `${MODE_TITLES.grammar4}（${level}）`;
-  const [questions, setQuestions] = useState(() => shuffle(grammar));
+  const [questions, setQuestions] = useState(() => shuffle(grammar).map(shuffleQuestionChoices));
   const [idx, setIdx] = useState(0);
   const [selected, setSelected] = useState(null);
   const [score, setScore] = useState(0);
@@ -824,7 +840,7 @@ function GrammarMode({ grammar, level, favGrammar, onToggleFav, onAnswer, onExit
   };
   const next = () => { setSelected(null); setIdx((i) => i + 1); };
   const restart = () => { setIdx(0); setSelected(null); setScore(0); };
-  const doShuffle = () => { setQuestions(shuffle(grammar)); setIdx(0); setSelected(null); setScore(0); };
+  const doShuffle = () => { setQuestions(shuffle(grammar).map(shuffleQuestionChoices)); setIdx(0); setSelected(null); setScore(0); };
 
   if (finished) {
     return (
@@ -1032,7 +1048,7 @@ function KakitoriMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
 // ⑦⑧ 語彙4択・漢字4択（教員がCSVで問題文・選択肢4つ・正解番号を直接入力する。形式は⑤文法4択問題と同じ）
 function BlankChoiceQuizMode({ modeKey, list, level, favSet, onToggleFav, onAnswer, onExit }) {
   const title = `${MODE_TITLES[modeKey]}（${level}）`;
-  const [questions, setQuestions] = useState(() => shuffle(list));
+  const [questions, setQuestions] = useState(() => shuffle(list).map(shuffleQuestionChoices));
   const [idx, setIdx] = useState(0);
   const [selected, setSelected] = useState(null);
   const [score, setScore] = useState(0);
@@ -1049,7 +1065,7 @@ function BlankChoiceQuizMode({ modeKey, list, level, favSet, onToggleFav, onAnsw
   };
   const next = () => { setSelected(null); setIdx((i) => i + 1); };
   const restart = () => { setIdx(0); setSelected(null); setScore(0); };
-  const doShuffle = () => { setQuestions(shuffle(list)); setIdx(0); setSelected(null); setScore(0); };
+  const doShuffle = () => { setQuestions(shuffle(list).map(shuffleQuestionChoices)); setIdx(0); setSelected(null); setScore(0); };
 
   if (finished) {
     return (
@@ -1114,7 +1130,7 @@ function BlankChoiceQuizMode({ modeKey, list, level, favSet, onToggleFav, onAnsw
 // ⑨ 読解問題（1つの文章につき、最大5つの設問・選択肢を同じ画面にまとめて表示する）
 function ReadingMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
   const title = `${MODE_TITLES.reading}（${level}）`;
-  const [passages, setPassages] = useState(() => shuffle(list));
+  const [passages, setPassages] = useState(() => shuffle(list).map(shufflePassageChoices));
   const [idx, setIdx] = useState(0);
   const [answered, setAnswered] = useState({});
   const [score, setScore] = useState(0);
@@ -1132,7 +1148,7 @@ function ReadingMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
     return (
       <div className="max-w-xl mx-auto text-center">
         <TopBar title={title} onExit={onExit} />
-        <ResultCard score={score} total={totalQuestions} onRestart={() => { setIdx(0); setScore(0); setPassages(shuffle(list)); }} onExit={onExit} />
+        <ResultCard score={score} total={totalQuestions} onRestart={() => { setIdx(0); setScore(0); setPassages(shuffle(list).map(shufflePassageChoices)); }} onExit={onExit} />
       </div>
     );
   }
@@ -1147,7 +1163,7 @@ function ReadingMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
   };
   const allAnswered = current.questions.every((_, i) => answered[i] !== undefined);
   const next = () => setIdx((i) => i + 1);
-  const doShuffle = () => { setPassages(shuffle(list)); setIdx(0); setAnswered({}); setScore(0); };
+  const doShuffle = () => { setPassages(shuffle(list).map(shufflePassageChoices)); setIdx(0); setAnswered({}); setScore(0); };
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -1834,3 +1850,4 @@ export default function App({
     </div>
   );
 }
+```
