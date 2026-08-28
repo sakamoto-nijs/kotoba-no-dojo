@@ -27,6 +27,18 @@ const READING_Q_MAX = 5;
 const REORDER_CARD_MAX = 6;
 const REORDER_CARD_MIN = 3;
 const SET_NO_MAX = 50;
+const MEANING_SLOT_MAX = 10;
+// flashcardMeaning・vocab4は、ふりがなをword列に「漢字(かな)」で書く運用のため、reading列は任意
+const READING_OPTIONAL_TYPES = ["flashcardMeaning", "vocab4"];
+
+// meaning_1〜meaning_10（教員が「言語設定」で決めた最大10言語ぶんの意味）を取り出す
+function parseMeaningFields(row) {
+  const fields = {};
+  for (let m = 1; m <= MEANING_SLOT_MAX; m++) {
+    fields[`meaning_${m}`] = (row[`meaning_${m}`] || "").trim();
+  }
+  return fields;
+}
 
 // set_no（問題セット番号・1〜50）。未入力なら1として扱う。範囲外や数値でない場合は1に丸めて注意を出す。
 function parseSetNo(row, idx, problems) {
@@ -88,13 +100,17 @@ function parseCSVText(text) {
     const setNo = parseSetNo(row, idx, problems);
 
     if (WORD_BASED_TYPES.includes(type) || type === "kakitori") {
-      if (!row.word || !row.reading) { problems.push(`${idx + 2}行目: word/readingが空です`); return; }
+      // flashcardMeaning・vocab4は、ふりがなをword列に「漢字(かな)」の形で書く運用になったため、readingは任意（従来のvocab・flashcardReading・kanji・kakitoriは引き続き必須）
+      const readingRequired = !READING_OPTIONAL_TYPES.includes(type);
+      if (!row.word || (readingRequired && !row.reading)) {
+        problems.push(`${idx + 2}行目: word${readingRequired ? "/reading" : ""}が空です`);
+        return;
+      }
       rows.push({
         type, level, set_no: setNo,
         word: row.word.trim(),
-        reading: row.reading.trim(),
-        meaning: (row.meaning || "").trim(),
-        meaning_en: (row.meaning_en || "").trim(),
+        reading: (row.reading || "").trim(),
+        ...parseMeaningFields(row),
         example: (row.example || "").trim(),
         char: type === "kakitori" ? row.word.trim() : null,
       });
@@ -136,18 +152,20 @@ function parseCSVText(text) {
   return { rows, problems };
 }
 
-const TEMPLATE = `type,level,set_no,word,reading,meaning,meaning_en,example,blank,choice1,choice2,choice3,choice4,answer,passage,q1,q1_choice1,q1_choice2,q1_choice3,q1_choice4,q1_answer,q2,q2_choice1,q2_choice2,q2_choice3,q2_choice4,q2_answer,q3,q3_choice1,q3_choice2,q3_choice3,q3_choice4,q3_answer,q4,q4_choice1,q4_choice2,q4_choice3,q4_choice4,q4_answer,q5,q5_choice1,q5_choice2,q5_choice3,q5_choice4,q5_answer,card1,card2,card3,card4,card5,card6
-flashcardReading,N4,1,食事,しょくじ,食べること,meal,家族と食事(しょくじ)をします。,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-flashcardMeaning,N4,1,食事,しょくじ,食べること,meal,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-vocab4,N4,1,食事,しょくじ,食べること,meal,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-kanji,N4,1,食事,しょくじ,食べること,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-grammar,N3,2,,,,,,この駅___乗り換(のりか)えます。,で,に,を,が,1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-kakitori,N5,1,学,がく,学ぶこと・学問,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-vocab4choice,N4,1,,,,,,「食べる」の意味として正しいものを選びなさい。,食事をする,外に出る,本を読む,友達と話す,1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-kanji4choice,N5,1,,,,,,「学校(がっこう)」の読み方として正しいものを選びなさい。,がっこう,がくこう,かっこう,がっごう,1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-reading,N5,1,,,,,,,,,,,,私は毎朝七時(しちじ)に起(お)きます。学校(がっこう)では友達と日本語を勉強(べんきょう)します。,「私」は何時に起きますか。,七時,六時,八時,九時,1,誰と勉強しますか。,先生,友達,家族,一人,2,,,,,,,,,,,,,,,,,,,,,,,,
-reorder,N5,1,,,,,,私は___。,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,教室(きょうしつ)で,日本語,を,勉強(べんきょう)する,,
-`;function stripBOM(text) {
+const TEMPLATE = `type,level,set_no,word,reading,meaning_1,meaning_2,meaning_3,meaning_4,meaning_5,meaning_6,meaning_7,meaning_8,meaning_9,meaning_10,example,blank,choice1,choice2,choice3,choice4,answer,passage,q1,q1_choice1,q1_choice2,q1_choice3,q1_choice4,q1_answer,q2,q2_choice1,q2_choice2,q2_choice3,q2_choice4,q2_answer,q3,q3_choice1,q3_choice2,q3_choice3,q3_choice4,q3_answer,q4,q4_choice1,q4_choice2,q4_choice3,q4_choice4,q4_answer,q5,q5_choice1,q5_choice2,q5_choice3,q5_choice4,q5_answer,card1,card2,card3,card4,card5,card6
+flashcardReading,N4,1,食事,しょくじ,meal,khaana,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+flashcardMeaning,N4,1,食(た)べる,,to eat,khaanu,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+vocab4,N4,1,食(た)べる,,to eat,khaanu,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+kanji,N4,1,食事,しょくじ,meal,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+grammar,N3,2,,,,,,,,,,,,,,この駅___乗り換(のりか)えます。,で,に,を,が,1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+kakitori,N5,1,学,がく,study / learning,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+vocab4choice,N4,1,,,,,,,,,,,,,,「食べる」の意味として正しいものを選びなさい。,食事をする,外に出る,本を読む,友達と話す,1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+kanji4choice,N5,1,,,,,,,,,,,,,,「学校(がっこう)」の読み方として正しいものを選びなさい。,がっこう,がくこう,かっこう,がっごう,1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+reading,N5,1,,,,,,,,,,,,,,,,,,,,私は毎朝七時(しちじ)に起(お)きます。学校(がっこう)では友達と日本語を勉強(べんきょう)します。,「私」は何時に起きますか。,七時,六時,八時,九時,1,誰と勉強しますか。,先生,友達,家族,一人,2,,,,,,,,,,,,,,,,,,,,,,,,
+reorder,N5,1,,,,,,,,,,,,,,私は___。,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,教室(きょうしつ)で,日本語,を,勉強(べんきょう)する,,
+`;
+
+function stripBOM(text) {
   return (text || "").replace(/^\uFEFF/, "");
 }
 
@@ -503,7 +521,7 @@ export default function TeacherUpload() {
           </label>
 
           <textarea value={text} onChange={(e) => setText(e.target.value)} rows={8}
-            placeholder="type,level,word,reading,meaning,meaning_en,example,blank,choice1,choice2,choice3,choice4,answer"
+            placeholder="type,level,word,reading,meaning_1,meaning_2,...,meaning_10,example,blank,choice1,choice2,choice3,choice4,answer"
             style={{ width: "100%", padding: "10px 12px", border: "1.5px solid var(--hairline)", borderRadius: R, fontSize: 12, fontFamily: "monospace" }} />
 
           {error && <div style={{ background: "var(--vermilion-tint)", color: "var(--vermilion-deep)", border: "1.5px solid var(--vermilion)", borderRadius: R, padding: "10px 14px", fontSize: 13, marginTop: 12 }}>{error}</div>}
@@ -519,12 +537,14 @@ export default function TeacherUpload() {
         <div style={{ fontSize: 12, color: "var(--ink-soft)", lineHeight: 1.8, marginTop: 16, marginBottom: 28 }}>
           <div><b>type</b>: flashcardReading（①フラッシュカード・読み方専用）／ flashcardMeaning（②フラッシュカード・意味専用）／ vocab4（③単語4択専用）／ kanji（④漢字読み方入力専用）／ grammar（⑤文法4択）／ kakitori（⑥漢字書き取り・単漢字）／ vocab4choice（⑦語彙4択）／ kanji4choice（⑧漢字4択）／ reading（⑨読解）／ reorder（⑩並べ替え）</div>
           <div><b>set_no</b>：問題セット番号（1〜50）。学生画面では「カテゴリー→レベル」を選んだ後、さらにこのセット番号ごとに問題を絞り込めます（未入力の場合は1として扱われます）。セットの名前（「1.〇〇」の〇〇部分）は、教員管理画面の「問題セット」から後で設定できます</div>
-          <div><b>①②③④が別のtypeに分かれた理由</b>：以前はvocab 1種類を①②③④共通で使っていましたが、例えば漢字を含まない語彙だと①（読み方カード）や④（漢字読み方入力）が成立しないため、それぞれ専用のtypeに分けました。同じ単語を複数のモードで使いたい場合は、typeを変えて複数行に分けて入力してください（word・reading・meaning・meaning_en・exampleの列は①②③④共通です）</div>
+          <div><b>meaning_1〜meaning_10</b>：意味の欄は最大10言語ぶん用意されています。各列が何語なのか、学生画面の選択肢に表示するかどうかは、教員管理画面の「言語設定」タブで設定してください（設定前はmeaning_1がそのまま表示されます）</div>
+          <div><b>①②③④が別のtypeに分かれた理由</b>：以前はvocab 1種類を①②③④共通で使っていましたが、例えば漢字を含まない語彙だと①（読み方カード）や④（漢字読み方入力）が成立しないため、それぞれ専用のtypeに分けました。同じ単語を複数のモードで使いたい場合は、typeを変えて複数行に分けて入力してください（word・reading・meaning_1〜10・exampleの列は①②③④共通です）</div>
+          <div><b>flashcardMeaning・vocab4のword列</b>：readingは使わず、word列に直接「食(た)べる」のようにふりがなをかっこ書きしてください（送り仮名のある単語も、漢字部分だけに正確にふりがなを振れます）。①フラッシュカード（読み方）・④漢字読み方入力・kakitoriでは、これまで通りreading列に読み方を入力してください</div>
           <div><b>vocab（従来のtype）</b>もそのまま使えます。vocabで登録した行は、これまで通り①②③④すべてに表示されます（今後は上記の専用typeを使うことをおすすめしますが、古いCSVを再アップロードしても問題ありません）</div>
           <div><b>kakitori行</b>は word 列に単漢字を1文字入れてください（例: 学）</div>
           <div><b>vocab4choice・kanji4choice行</b>はgrammarと同じくblank（問題文）・choice1〜4・answer（1〜4）を使用します。blankに___（アンダースコア3つ）を入れると空欄埋め形式に、入れなければ普通の設問文として表示されます</div>
           <div><b>___（アンダースコア3つ）</b>はgrammar・vocab4choice・kanji4choiceのblank、reorderのblankのどこでも、空欄として色付きの下線で表示されます</div>
-          <div><b>ふりがな</b>：word以外の自由記述欄（example・blank・passage・q1〜q5・choice1〜4・card1〜card6など）では、「学校(がっこう)」のように漢字の直後に（半角・全角どちらでも）読み方をかっこ書きすると、学生画面では漢字の上に小さくふりがなとして表示されます</div>
+          <div><b>ふりがな</b>：word（flashcardMeaning・vocab4のみ対象）や、example・blank・passage・q1〜q5・choice1〜4・card1〜card6などの自由記述欄では、「学校(がっこう)」のように漢字の直後に（半角・全角どちらでも）読み方をかっこ書きすると、学生画面では漢字の上に小さくふりがなとして表示されます</div>
           <div><b>reading行</b>はpassage（文章）と、q1〜q5（設問・choice1〜4・answer）を使用します。設問は最大5つまで、1つ以上あれば取り込めます</div>
           <div><b>reorder行</b>はblank（___を含む例文）と、card1〜card6（正しい順番の単語、3〜6枚）を使用します</div>
         </div>
