@@ -4,11 +4,19 @@ import { supabase } from "../lib/supabaseClient";
 import { fetchAllRows } from "../lib/fetchAllRows";
 import NihongoApp from "../components/NihongoApp";
 
+// meaning_1〜meaning_10（教員が「言語設定」で決めた最大10言語ぶんの意味）を { スロット番号: 文字列 } の形にまとめる
+function buildMeanings(r) {
+  const meanings = {};
+  for (let m = 1; m <= 10; m++) {
+    const v = r[`meaning_${m}`];
+    if (v) meanings[m] = v;
+  }
+  return meanings;
+}
 function mapVocab(rows, type) {
   return rows.map((r) => ({
     id: r.id, type: type || r.type, level: r.level, setNo: r.set_no,
-    word: r.word, reading: r.reading, meaning: r.meaning,
-    meaningEn: r.meaning_en, example: r.example,
+    word: r.word, reading: r.reading, meanings: buildMeanings(r), example: r.example,
   }));
 }
 function mapGrammar(rows) {
@@ -21,7 +29,7 @@ function mapGrammar(rows) {
 }
 function mapKakitori(rows) {
   return rows.map((r) => ({
-    id: r.id, level: r.level, setNo: r.set_no, char: r.word, reading: r.reading, meaning: r.meaning,
+    id: r.id, level: r.level, setNo: r.set_no, char: r.word, reading: r.reading, meanings: buildMeanings(r),
   }));
 }
 // ⑦⑧ 語彙4択・漢字4択：文法穴埋め（grammar）と全く同じ形式（blank・choice1〜4・answer）を共有する
@@ -70,6 +78,7 @@ export default function AppPage() {
   const [initialReading, setInitialReading] = useState([]);
   const [initialReorder, setInitialReorder] = useState([]);
   const [setNameMap, setSetNameMap] = useState({});
+  const [languageOptions, setLanguageOptions] = useState([]);
 
   useEffect(() => {
     (async () => {
@@ -100,6 +109,11 @@ export default function AppPage() {
       const nameMap = {};
       (setNameRows || []).forEach((r) => { nameMap[`${r.type}|${r.level}|${r.set_no}`] = r.name; });
       setSetNameMap(nameMap);
+
+      const langRows = await fetchAllRows(() =>
+        supabase.from("meaning_languages").select("slot, language_name").eq("teacher_id", teacherId).eq("visible", true).order("slot", { ascending: true })
+      );
+      setLanguageOptions((langRows || []).map((r) => ({ slot: r.slot, name: r.language_name })));
 
       setReady(true);
     })();
@@ -155,6 +169,7 @@ export default function AppPage() {
       initialReading={initialReading}
       initialReorder={initialReorder}
       setNameMap={setNameMap}
+      languageOptions={languageOptions}
       studentName={studentName}
       onAnswer={handleAnswer}
       onSessionEnd={handleSessionEnd}
