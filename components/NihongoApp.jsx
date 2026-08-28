@@ -83,6 +83,15 @@ function renderAnnotatedText(text) {
   return nodes;
 }
 
+// 選んだ言語スロット（1〜10）の意味を取り出す。未入力の場合は、入力されている最初の言語にフォールバックする。
+function getMeaningText(item, langSlot) {
+  if (!item || !item.meanings) return "";
+  const direct = item.meanings[langSlot];
+  if (direct) return direct;
+  const fallback = Object.values(item.meanings).find((v) => v);
+  return fallback || "";
+}
+
 const LEVELS = [
   { key: "N5", desc: "初級" },
   { key: "N4", desc: "初中級" },
@@ -106,26 +115,26 @@ const MODE_TITLES = {
 };
 
 const SAMPLE_VOCAB = [
-  { type: "vocab", level: "N5", word: "学校", reading: "がっこう", meaning: "学ぶための場所", meaningEn: "school", example: "毎日学校に行きます。" },
-  { type: "vocab", level: "N5", word: "先生", reading: "せんせい", meaning: "教える人", meaningEn: "teacher", example: "先生はやさしいです。" },
-  { type: "vocab", level: "N5", word: "電話", reading: "でんわ", meaning: "話すための機械", meaningEn: "telephone", example: "友達に電話をかけます。" },
-  { type: "vocab", level: "N5", word: "家族", reading: "かぞく", meaning: "親・兄弟など", meaningEn: "family", example: "私の家族は四人です。" },
-  { type: "vocab", level: "N4", word: "勉強", reading: "べんきょう", meaning: "学ぶこと", meaningEn: "studying", example: "毎日日本語を勉強します。" },
-  { type: "vocab", level: "N4", word: "図書館", reading: "としょかん", meaning: "本を借りたり読んだりする場所", meaningEn: "library", example: "週末は図書館で勉強します。" },
-  { type: "vocab", level: "N4", word: "天気", reading: "てんき", meaning: "空の様子・晴れや雨など", meaningEn: "weather", example: "今日は天気がいいです。" },
-  { type: "vocab", level: "N4", word: "病院", reading: "びょういん", meaning: "病気やけがを治す場所", meaningEn: "hospital", example: "頭が痛いので病院に行きます。" },
-  { type: "vocab", level: "N3", word: "約束", reading: "やくそく", meaning: "前もって決めておくこと", meaningEn: "promise", example: "友達と会う約束をしました。" },
-  { type: "vocab", level: "N3", word: "経験", reading: "けいけん", meaning: "実際にやって得た知識や技術", meaningEn: "experience", example: "いい経験になりました。" },
-  { type: "vocab", level: "N3", word: "準備", reading: "じゅんび", meaning: "前もって用意すること", meaningEn: "preparation", example: "旅行の準備をしています。" },
-  { type: "vocab", level: "N3", word: "説明", reading: "せつめい", meaning: "わかりやすく話すこと", meaningEn: "explanation", example: "先生が問題の説明をします。" },
-  { type: "vocab", level: "N2", word: "相談", reading: "そうだん", meaning: "意見を聞いたり話し合ったりすること", meaningEn: "consultation", example: "進路について先生に相談しました。" },
-  { type: "vocab", level: "N2", word: "参加", reading: "さんか", meaning: "集まりや行事に加わること", meaningEn: "participation", example: "文化祭に参加します。" },
-  { type: "vocab", level: "N2", word: "影響", reading: "えいきょう", meaning: "他のものに及ぼす働き", meaningEn: "influence", example: "天気が体調に影響します。" },
-  { type: "vocab", level: "N2", word: "成長", reading: "せいちょう", meaning: "育って大きくなること", meaningEn: "growth", example: "子供が大きく成長しました。" },
-  { type: "vocab", level: "N1", word: "概念", reading: "がいねん", meaning: "物事のおおまかな意味内容", meaningEn: "concept", example: "新しい概念を学びました。" },
-  { type: "vocab", level: "N1", word: "矛盾", reading: "むじゅん", meaning: "つじつまが合わないこと", meaningEn: "contradiction", example: "彼の話には矛盾がある。" },
-  { type: "vocab", level: "N1", word: "妥協", reading: "だきょう", meaning: "譲り合って合意すること", meaningEn: "compromise", example: "双方が妥協点を探った。" },
-  { type: "vocab", level: "N1", word: "把握", reading: "はあく", meaning: "物事をよく理解すること", meaningEn: "grasp / understanding", example: "状況を正確に把握する。" },
+  { type: "vocab", level: "N5", word: "学校", reading: "がっこう", meanings: { 1: "学ぶための場所", 2: "school" }, example: "毎日学校に行きます。" },
+  { type: "vocab", level: "N5", word: "先生", reading: "せんせい", meanings: { 1: "教える人", 2: "teacher" }, example: "先生はやさしいです。" },
+  { type: "vocab", level: "N5", word: "電話", reading: "でんわ", meanings: { 1: "話すための機械", 2: "telephone" }, example: "友達に電話をかけます。" },
+  { type: "vocab", level: "N5", word: "家族", reading: "かぞく", meanings: { 1: "親・兄弟など", 2: "family" }, example: "私の家族は四人です。" },
+  { type: "vocab", level: "N4", word: "勉強", reading: "べんきょう", meanings: { 1: "学ぶこと", 2: "studying" }, example: "毎日日本語を勉強します。" },
+  { type: "vocab", level: "N4", word: "図書館", reading: "としょかん", meanings: { 1: "本を借りたり読んだりする場所", 2: "library" }, example: "週末は図書館で勉強します。" },
+  { type: "vocab", level: "N4", word: "天気", reading: "てんき", meanings: { 1: "空の様子・晴れや雨など", 2: "weather" }, example: "今日は天気がいいです。" },
+  { type: "vocab", level: "N4", word: "病院", reading: "びょういん", meanings: { 1: "病気やけがを治す場所", 2: "hospital" }, example: "頭が痛いので病院に行きます。" },
+  { type: "vocab", level: "N3", word: "約束", reading: "やくそく", meanings: { 1: "前もって決めておくこと", 2: "promise" }, example: "友達と会う約束をしました。" },
+  { type: "vocab", level: "N3", word: "経験", reading: "けいけん", meanings: { 1: "実際にやって得た知識や技術", 2: "experience" }, example: "いい経験になりました。" },
+  { type: "vocab", level: "N3", word: "準備", reading: "じゅんび", meanings: { 1: "前もって用意すること", 2: "preparation" }, example: "旅行の準備をしています。" },
+  { type: "vocab", level: "N3", word: "説明", reading: "せつめい", meanings: { 1: "わかりやすく話すこと", 2: "explanation" }, example: "先生が問題の説明をします。" },
+  { type: "vocab", level: "N2", word: "相談", reading: "そうだん", meanings: { 1: "意見を聞いたり話し合ったりすること", 2: "consultation" }, example: "進路について先生に相談しました。" },
+  { type: "vocab", level: "N2", word: "参加", reading: "さんか", meanings: { 1: "集まりや行事に加わること", 2: "participation" }, example: "文化祭に参加します。" },
+  { type: "vocab", level: "N2", word: "影響", reading: "えいきょう", meanings: { 1: "他のものに及ぼす働き", 2: "influence" }, example: "天気が体調に影響します。" },
+  { type: "vocab", level: "N2", word: "成長", reading: "せいちょう", meanings: { 1: "育って大きくなること", 2: "growth" }, example: "子供が大きく成長しました。" },
+  { type: "vocab", level: "N1", word: "概念", reading: "がいねん", meanings: { 1: "物事のおおまかな意味内容", 2: "concept" }, example: "新しい概念を学びました。" },
+  { type: "vocab", level: "N1", word: "矛盾", reading: "むじゅん", meanings: { 1: "つじつまが合わないこと", 2: "contradiction" }, example: "彼の話には矛盾がある。" },
+  { type: "vocab", level: "N1", word: "妥協", reading: "だきょう", meanings: { 1: "譲り合って合意すること", 2: "compromise" }, example: "双方が妥協点を探った。" },
+  { type: "vocab", level: "N1", word: "把握", reading: "はあく", meanings: { 1: "物事をよく理解すること", 2: "grasp / understanding" }, example: "状況を正確に把握する。" },
 ];
 
 const SAMPLE_GRAMMAR = [
@@ -405,8 +414,7 @@ function parseCSVText(text) {
         level,
         word: row.word.trim(),
         reading: row.reading.trim(),
-        meaning: (row.meaning || "").trim(),
-        meaningEn: (row.meaning_en || "").trim(),
+        meanings: { 1: (row.meaning || "").trim(), 2: (row.meaning_en || "").trim() },
         example: (row.example || "").trim(),
       });
     } else if (type === "grammar") {
@@ -574,7 +582,7 @@ function SetSelect({ modeKey, level, fullList, setNameMap, onSelect, onExit }) {
   );
 }
 
-function FlashcardMode({ vocab, level, lang, cardMode, favVocab, onToggleFav, onCardAdvance, onExit }) {
+function FlashcardMode({ vocab, level, langSlot, cardMode, favVocab, onToggleFav, onCardAdvance, onExit }) {
   const [order, setOrder] = useState(() => vocab.map((_, i) => i));
   const [pos, setPos] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -582,7 +590,7 @@ function FlashcardMode({ vocab, level, lang, cardMode, favVocab, onToggleFav, on
   const current = vocab[order[pos]];
   const title = `${cardMode === "reading" ? MODE_TITLES.flashcardReading : MODE_TITLES.flashcardMeaning}（${level}）`;
   const isFav = favVocab.has(current.word);
-  const meaningText = lang === "en" ? (current.meaningEn || current.meaning) : current.meaning;
+  const meaningText = getMeaningText(current, langSlot);
 
   // 「次へ」でカードを1枚進めるたびに1回とカウントする（学習回数の定義）
   const next = () => { setFlipped(false); setPos((p) => (p + 1) % order.length); if (onCardAdvance) onCardAdvance(); };
@@ -590,15 +598,12 @@ function FlashcardMode({ vocab, level, lang, cardMode, favVocab, onToggleFav, on
   const doShuffle = () => { setOrder(shuffle(vocab.map((_, i) => i))); setPos(0); setFlipped(false); };
 
   // 「単語側」と「情報側」、それぞれの表示内容は固定。表裏入れ替えはどちらを先に見せるかだけを変える。
-  // 読み方カードは「単語＋読み方」のみ、意味カードは「単語＋意味」のみを表示するのが基本方針だが、
-  // 意味カードは単語が漢字だけだと読めない場合があるため、読み方をふりがな（60%サイズ）として併記する。
-  const wordSide = cardMode === "meaning" ? (
-    <ruby style={{ fontFamily: KLEE, fontWeight: 600, fontSize: autoFontSize(current.word), color: COLORS.ink }}>
-      {current.word}
-      <rt style={{ fontSize: "0.6em", fontWeight: 500, color: COLORS.inkSoft }}>{current.reading}</rt>
-    </ruby>
-  ) : (
-    <div style={{ fontFamily: KLEE, fontWeight: 600, fontSize: autoFontSize(current.word), color: COLORS.ink }}>{current.word}</div>
+  // 読み方カードは「単語＋読み方」のみ、意味カードは「単語＋意味」のみを表示するのが基本方針。
+  // 意味カードのword列は、readingではなくword自体に「食(た)べる」の形でふりがなが入っている想定で解析して表示する。
+  const wordSide = (
+    <div style={{ fontFamily: KLEE, fontWeight: 600, fontSize: autoFontSize(current.word), color: COLORS.ink }}>
+      {cardMode === "meaning" ? renderAnnotatedText(current.word) : current.word}
+    </div>
   );
   const infoSide = cardMode === "reading" ? (
     <div style={{ fontFamily: KLEE, fontSize: autoFontSize(current.reading, 40, 20, 4), color: COLORS.indigo, fontWeight: 600 }}>{current.reading}</div>
@@ -646,13 +651,13 @@ function FlashcardMode({ vocab, level, lang, cardMode, favVocab, onToggleFav, on
   );
 }
 
-function Vocab4Mode({ vocab, level, lang, favVocab, onToggleFav, onAnswer, onExit }) {
+function Vocab4Mode({ vocab, level, langSlot, favVocab, onToggleFav, onAnswer, onExit }) {
   const title = `${MODE_TITLES.vocab4}（${level}）`;
   const buildQuestions = () =>
     shuffle(vocab).map((v) => {
       const distractors = shuffle(vocab.filter((x) => x.word !== v.word)).slice(0, 3);
-      const options = shuffle([v, ...distractors]).map((x) => ({ word: x.word, reading: x.reading }));
-      const meaningText = lang === "en" ? (v.meaningEn || v.meaning) : v.meaning;
+      const options = shuffle([v, ...distractors]).map((x) => ({ word: x.word }));
+      const meaningText = getMeaningText(v, langSlot);
       return { id: v.id || v.word, q: meaningText, answer: v.word, options };
     });
 
@@ -707,7 +712,7 @@ function Vocab4Mode({ vocab, level, lang, favVocab, onToggleFav, onAnswer, onExi
           }
           return (
             <button key={i} onClick={() => choose(opt)} className="flex items-center justify-between px-5 py-4 text-left" style={{ ...style, fontFamily: KLEE, fontSize: 20, fontWeight: 600, borderRadius: R, cursor: selected ? "default" : "pointer" }}>
-              <span>{opt.word}{opt.reading ? `（${opt.reading}）` : ""}</span>
+              <span>{renderAnnotatedText(opt.word)}</span>
               {selected && opt.word === current.answer && <Check size={20} />}
               {selected && opt.word === selected && opt.word !== current.answer && <X size={20} />}
             </button>
@@ -891,7 +896,7 @@ function GrammarMode({ grammar, level, favGrammar, onToggleFav, onAnswer, onExit
   );
 }
 
-function KakitoriMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
+function KakitoriMode({ list, level, langSlot, favSet, onToggleFav, onAnswer, onExit }) {
   const title = `${MODE_TITLES.kakitori}（${level}）`;
   const [questions, setQuestions] = useState(() => shuffle(list));
   const [idx, setIdx] = useState(0);
@@ -968,7 +973,7 @@ function KakitoriMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
         <StarButton active={isFav} onClick={() => onToggleFav(current.char)} style={{ position: "absolute", top: 8, right: 8 }} />
         <div style={{ fontSize: 11, color: COLORS.inkFaint, marginBottom: 8, letterSpacing: "0.08em", fontFamily: KLEE }}>次の意味・読み方を持つ漢字を書いてください</div>
         <div style={{ fontFamily: KLEE, fontSize: 22, color: COLORS.indigo, fontWeight: 600 }}>{current.reading}</div>
-        <div style={{ fontSize: 14, color: COLORS.ink, fontFamily: KLEE, marginTop: 4 }}>{renderAnnotatedText(current.meaning)}</div>
+        <div style={{ fontSize: 14, color: COLORS.ink, fontFamily: KLEE, marginTop: 4 }}>{renderAnnotatedText(getMeaningText(current, langSlot))}</div>
       </div>
 
       <canvas
@@ -1449,6 +1454,7 @@ export default function App({
   initialReading,
   initialReorder,
   setNameMap = {},
+  languageOptions = [],
   studentName,
   onAnswer,
   onSessionEnd,
@@ -1476,7 +1482,10 @@ export default function App({
   const [selectedLevel, setSelectedLevel] = useState(null);
   const [selectedSetNo, setSelectedSetNo] = useState(null);
   const [toast, setToast] = useState(null);
-  const [lang, setLang] = useState("en");
+  // 教員が「言語設定」で設定した言語（表示ONのもののみ）。1つも設定されていない場合は、
+  // meaning_1をそのまま「意味」として表示するフォールバックにする。
+  const effectiveLanguageOptions = languageOptions && languageOptions.length ? languageOptions : [{ slot: 1, name: "意味" }];
+  const [langSlot, setLangSlot] = useState(effectiveLanguageOptions[0].slot);
   const [favFlashcardReading, setFavFlashcardReading] = useState(() => new Set());
   const [favFlashcardMeaning, setFavFlashcardMeaning] = useState(() => new Set());
   const [favVocab4, setFavVocab4] = useState(() => new Set());
@@ -1753,11 +1762,18 @@ export default function App({
             <div style={{ color: COLORS.inkSoft, fontSize: 13, marginTop: 8, fontFamily: SANS, letterSpacing: "0.04em" }}>日本語学習者向け 単語・文法トレーニング（試作版）</div>
             <div style={{ color: COLORS.inkFaint, fontSize: 12, marginTop: 10, fontFamily: SANS }}>文法 {grammarList.length}件（N5〜N1）</div>
 
-            <div className="flex items-center justify-center gap-2 mt-4">
+            <div className="flex items-center justify-center gap-2 mt-4 flex-wrap">
               <span style={{ fontFamily: SANS, fontSize: 12, color: COLORS.inkFaint }}>意味の表示言語:</span>
-              <div className="flex" style={{ border: `1.5px solid ${COLORS.ink}`, borderRadius: R, overflow: "hidden" }}>
-                <button onClick={() => setLang("ja")} style={{ padding: "4px 12px", background: lang === "ja" ? COLORS.ink : "transparent", color: lang === "ja" ? COLORS.surface : COLORS.ink, border: "none", fontFamily: SANS, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>日本語</button>
-                <button onClick={() => setLang("en")} style={{ padding: "4px 12px", background: lang === "en" ? COLORS.ink : "transparent", color: lang === "en" ? COLORS.surface : COLORS.ink, border: "none", fontFamily: SANS, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>English</button>
+              <div className="flex flex-wrap" style={{ border: `1.5px solid ${COLORS.ink}`, borderRadius: R, overflow: "hidden" }}>
+                {effectiveLanguageOptions.map((opt) => (
+                  <button
+                    key={opt.slot}
+                    onClick={() => setLangSlot(opt.slot)}
+                    style={{ padding: "4px 12px", background: langSlot === opt.slot ? COLORS.ink : "transparent", color: langSlot === opt.slot ? COLORS.surface : COLORS.ink, border: "none", fontFamily: SANS, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                  >
+                    {opt.name}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
@@ -1831,12 +1847,12 @@ export default function App({
         />
       )}
 
-      {screen === "flashcardReading" && <FlashcardMode vocab={activeFlashcardReading} level={selectedLevel} lang={lang} cardMode="reading" favVocab={favFlashcardReading} onToggleFav={toggleFavFlashcardReading} onCardAdvance={bumpReviewCount} onExit={backFromMode} />}
-      {screen === "flashcardMeaning" && <FlashcardMode vocab={activeFlashcardMeaning} level={selectedLevel} lang={lang} cardMode="meaning" favVocab={favFlashcardMeaning} onToggleFav={toggleFavFlashcardMeaning} onCardAdvance={bumpReviewCount} onExit={backFromMode} />}
-      {screen === "vocab4" && <Vocab4Mode vocab={activeVocab4} level={selectedLevel} lang={lang} favVocab={favVocab4} onToggleFav={toggleFavVocab4} onAnswer={reportAnswer} onExit={backFromMode} />}
+      {screen === "flashcardReading" && <FlashcardMode vocab={activeFlashcardReading} level={selectedLevel} langSlot={langSlot} cardMode="reading" favVocab={favFlashcardReading} onToggleFav={toggleFavFlashcardReading} onCardAdvance={bumpReviewCount} onExit={backFromMode} />}
+      {screen === "flashcardMeaning" && <FlashcardMode vocab={activeFlashcardMeaning} level={selectedLevel} langSlot={langSlot} cardMode="meaning" favVocab={favFlashcardMeaning} onToggleFav={toggleFavFlashcardMeaning} onCardAdvance={bumpReviewCount} onExit={backFromMode} />}
+      {screen === "vocab4" && <Vocab4Mode vocab={activeVocab4} level={selectedLevel} langSlot={langSlot} favVocab={favVocab4} onToggleFav={toggleFavVocab4} onAnswer={reportAnswer} onExit={backFromMode} />}
       {screen === "kanji" && <KanjiInputMode vocab={activeKanji} level={selectedLevel} favVocab={favKanji} onToggleFav={toggleFavKanji} onAnswer={reportAnswer} onExit={backFromMode} />}
       {screen === "grammar4" && <GrammarMode grammar={activeGrammar} level={selectedLevel} favGrammar={favGrammar} onToggleFav={toggleFavGrammar} onAnswer={reportAnswer} onExit={backFromMode} />}
-      {screen === "kakitori" && <KakitoriMode list={activeKakitori} level={selectedLevel} favSet={favKakitori} onToggleFav={toggleFavKakitori} onAnswer={reportAnswer} onExit={backFromMode} />}
+      {screen === "kakitori" && <KakitoriMode list={activeKakitori} level={selectedLevel} langSlot={langSlot} favSet={favKakitori} onToggleFav={toggleFavKakitori} onAnswer={reportAnswer} onExit={backFromMode} />}
       {screen === "vocab4choice" && <BlankChoiceQuizMode modeKey="vocab4choice" list={activeVocab4Choice} level={selectedLevel} favSet={favVocab4Choice} onToggleFav={toggleFavVocab4Choice} onAnswer={reportAnswer} onExit={backFromMode} />}
       {screen === "kanji4choice" && <BlankChoiceQuizMode modeKey="kanji4choice" list={activeKanji4Choice} level={selectedLevel} favSet={favKanji4Choice} onToggleFav={toggleFavKanji4Choice} onAnswer={reportAnswer} onExit={backFromMode} />}
       {screen === "reading" && <ReadingMode list={activeReading} level={selectedLevel} favSet={favReading} onToggleFav={toggleFavReading} onAnswer={reportAnswer} onExit={backFromMode} />}
