@@ -1,4 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from "react";
+import { useRouter } from "next/router";
 import Papa from "papaparse";
 import * as tf from "@tensorflow/tfjs";
 import {
@@ -1456,12 +1457,16 @@ export default function App({
   setNameMap = {},
   languageOptions = [],
   studentName,
+  studentId,
+  accessToken,
   onAnswer,
   onSessionEnd,
+  onRegisterFlushSession,
   onLogout,
   myPageHref,
   allowLocalImport = true,
 } = {}) {
+  const router = useRouter();
   // 本番環境（allowLocalImport=false）では、問題が0件のカテゴリーはサンプルデータへの
   // フォールバックをせず、そのまま「利用不可（0件）」として扱う。
   // サンプルデータへのフォールバックは、バックエンドを持たない単体デモ表示（allowLocalImport=true）でのみ行う。
@@ -1497,30 +1502,96 @@ export default function App({
   const [favReading, setFavReading] = useState(() => new Set());
   const [favReorder, setFavReorder] = useState(() => new Set());
 
-  // 「学習回数」のカウンター。③④⑤⑥は1問答えるたびに、①②はカードを1枚進めるたびに+1する。
-  // モード・レベルの画面を開いている間の経過時間とあわせて、画面を離れるタイミングでonSessionEndに渡す。
+  // 「学習回数」のカウンター。③④⑤⑥⑦⑧⑨⑩は1問答えるたびに、①②はカードを1枚進めるたびに+1する。
+  //
+  // 学習時間は「画面を実際に見ていた区間（segment）」ごとに計測する。
+  // ・モード画面に入ったら計測開始（segmentStartRef）
+  // ・タブが非表示になった瞬間（他アプリに切り替えた・画面をロックした等）に、その時点までの区間を
+  //   flushSession()で確定・記録し、計測を止める（＝放置していた時間は学習時間に含まれない）
+  // ・タブが再び表示された時、まだ同じモード画面にいれば計測を再開する（新しい区間として続きを数える）
+  // ・画面を完全に離れる時（「戻る」「ホームに戻る」やアンマウント）にも、計測中の区間があれば確定・記録する
+  // これにより「悩んでいた時間」（画面を見たまま操作していない時間）は引き続き学習時間に含まれ、
+  // 「見ていなかった時間」だけが除外される。
   const reviewCountRef = useRef(0);
-  const sessionStartRef = useRef(null);
+  const segmentStartRef = useRef(null);
+  // 「マイアカウント」「ホームに戻る」など、アプリ内の操作から今の区間を確定させたい時に呼ぶための入り口。
+  // モード画面にいない間はデフォルトで何もしない関数にしておく。
+  const flushSessionRef = useRef(() => Promise.resolve());
   const bumpReviewCount = () => { reviewCountRef.current += 1; };
+
+  // navigator.sendBeacon はカスタムヘッダー（Authorizationなど）を送れないため、
+  // 認証情報（アクセストークン）はリクエストのbody（JSON）に含めて専用APIルートに送る。
+  // タブを閉じる・非表示にする、といった「ページが破棄されようとしている」状況専用の送信手段。
+  const sendSessionBeacon = ({ mode, level, items, durationSeconds }) => {
+    if (!studentId || !accessToken || !level) return; // デモ表示など（props未指定）では何もしない
+    if (typeof navigator === "undefined" || !navigator.sendBeacon) return;
+    try {
+      const payload = JSON.stringify({ accessToken, studentId, mode, level, items, durationSeconds });
+      navigator.sendBeacon("/api/save-session-beacon", new Blob([payload], { type: "application/json" }));
+    } catch (e) {
+      console.error("study_sessions（beacon経由）の送信に失敗しました:", e);
+    }
+  };
 
   useEffect(() => {
     const isModeScreen = MODE_KEYS.includes(screen);
-    if (isModeScreen) {
-      sessionStartRef.current = Date.now();
-      reviewCountRef.current = 0;
+    if (!isModeScreen) {
+      flushSessionRef.current = () => Promise.resolve();
+      if (onRegisterFlushSession) onRegisterFlushSession(() => Promise.resolve());
+      return;
     }
-    return () => {
-      if (isModeScreen && sessionStartRef.current) {
-        const durationSeconds = Math.round((Date.now() - sessionStartRef.current) / 1000);
-        // 数秒未満（誤操作でモードを開いてすぐ閉じた等）は記録しないようにする
-        if (durationSeconds >= 3 && onSessionEnd) {
-          onSessionEnd({ mode: screen, level: selectedLevel, durationSeconds, items: reviewCountRef.current });
+
+    segmentStartRef.current = Date.now();
+    reviewCountRef.current = 0;
+
+    // 今計測中の区間を確定して記録し、リセットする（この効果が有効な間＝このモード画面にいる間だけ意味を持つ）
+    const flushSession = async (viaBeacon) => {
+      if (!segmentStartRef.current) return; // 計測中でなければ何もしない（二重送信防止）
+      const durationSeconds = Math.round((Date.now() - segmentStartRef.current) / 1000);
+      const items = reviewCountRef.current;
+      segmentStartRef.current = null;
+      reviewCountRef.current = 0; // 次の区間のためにリセット
+      if (durationSeconds < 3 && items === 0) return; // 記録するまでもない短い区間は無視
+      if (viaBeacon) {
+        sendSessionBeacon({ mode: screen, level: selectedLevel, items, durationSeconds });
+        return;
+      }
+      if (onSessionEnd) {
+        try {
+          await onSessionEnd({ mode: screen, level: selectedLevel, durationSeconds, items });
+        } catch (e) {
+          console.error("study_sessionsの記録に失敗しました:", e);
         }
       }
-      sessionStartRef.current = null;
+    };
+
+    const flushViaAppNav = () => flushSession(false);
+    flushSessionRef.current = flushViaAppNav;
+    if (onRegisterFlushSession) onRegisterFlushSession(flushViaAppNav);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        flushSession(true); // ページ破棄の可能性がある状況なのでbeacon経由
+      } else if (document.visibilityState === "visible") {
+        // 再開：まだ何も確定していないので、計測開始時刻をリセットするだけ
+        if (!segmentStartRef.current) segmentStartRef.current = Date.now();
+      }
+    };
+    const handlePageHide = () => { flushSession(true); };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pagehide", handlePageHide);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pagehide", handlePageHide);
+      // アプリ内遷移（「戻る」「ホームに戻る」やこの画面自体のアンマウント）で離れる時の確定
+      flushSession(false);
+      flushSessionRef.current = () => Promise.resolve();
+      if (onRegisterFlushSession) onRegisterFlushSession(() => Promise.resolve());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [screen, selectedLevel]);
+  }, [screen, selectedLevel, studentId, accessToken]);
 
   // 進捗をSupabaseに記録するコールバック（未指定なら何もしない＝チャット内プレビュー時と同じ挙動）
   // あわせて「学習回数」のカウントも進める
@@ -1644,7 +1715,10 @@ export default function App({
   const backToLevel = () => { setSelectedSetNo(null); setScreen("level"); };
   const backToSet = () => setScreen("set");
   const backFromMode = selectedLevel === "FAV" ? backToLevel : backToSet;
-  const backToHome = () => { setPendingMode(null); setSelectedLevel(null); setSelectedSetNo(null); setScreen("home"); };
+  const backToHome = async () => {
+    await flushSessionRef.current();
+    setPendingMode(null); setSelectedLevel(null); setSelectedSetNo(null); setScreen("home");
+  };
 
   const modes = [
     { key: "flashcardReading", title: MODE_TITLES.flashcardReading, desc: "単語を見て読み方を覚える", icon: BookOpen, disabled: flashcardReadingList.length === 0 },
@@ -1733,10 +1807,17 @@ export default function App({
               </button>
             )}
             {myPageHref && (
-              <a href={myPageHref} className="flex items-center gap-1.5" style={{ color: COLORS.surface, background: COLORS.indigo, border: `1.5px solid ${COLORS.indigo}`, borderRadius: R, padding: "7px 14px", textDecoration: "none", fontFamily: SANS, fontSize: 13, fontWeight: 700, lineHeight: 1.2 }}>
+              // 通常の<a href>タグ（ブラウザのフルページ遷移）だと、Reactのアンマウント処理
+              // （＝学習セッションのflushSession）が実行されないまま画面が破棄されてしまうため、
+              // 先にflushSession()を確定させてからNext.jsのクライアントサイド遷移で移動する。
+              <button
+                onClick={async () => { await flushSessionRef.current(); router.push(myPageHref); }}
+                className="flex items-center gap-1.5"
+                style={{ color: COLORS.surface, background: COLORS.indigo, border: `1.5px solid ${COLORS.indigo}`, borderRadius: R, padding: "7px 14px", textDecoration: "none", fontFamily: SANS, fontSize: 13, fontWeight: 700, lineHeight: 1.2, cursor: "pointer" }}
+              >
                 <UserCircle size={18} />
                 <span>マイアカウント <span style={{ fontWeight: 500, opacity: 0.85 }}>/ My Page</span></span>
-              </a>
+              </button>
             )}
             {onLogout && (
               <button onClick={onLogout} style={{ color: COLORS.surface, background: COLORS.vermilionDeep, border: `1.5px solid ${COLORS.vermilionDeep}`, borderRadius: R, padding: "7px 14px", cursor: "pointer", fontFamily: SANS, fontSize: 13, fontWeight: 700, lineHeight: 1.2 }}>
