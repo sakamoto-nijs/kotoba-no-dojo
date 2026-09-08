@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../lib/supabaseClient";
 import { fetchAllRows } from "../lib/fetchAllRows";
@@ -67,6 +67,10 @@ export default function AppPage() {
   const [ready, setReady] = useState(false);
   const [studentId, setStudentId] = useState(null);
   const [studentName, setStudentName] = useState("");
+  const [accessToken, setAccessToken] = useState(null);
+  // 「マイアカウント」「ホームに戻る」など、アプリ内の操作から学習セッションを確定させるための入り口。
+  // NihongoApp側から onRegisterFlushSession 経由で最新の関数が渡され、ここに保持される。
+  const flushSessionRef = useRef(() => Promise.resolve());
   const [initialFlashcardReading, setInitialFlashcardReading] = useState([]);
   const [initialFlashcardMeaning, setInitialFlashcardMeaning] = useState([]);
   const [initialVocab4, setInitialVocab4] = useState([]);
@@ -90,6 +94,7 @@ export default function AppPage() {
 
       setStudentId(session.user.id);
       setStudentName(profile.display_name);
+      setAccessToken(session.access_token);
       const teacherId = profile.created_by;
 
       const rows = await fetchAllRows(() => supabase.from("questions").select("*").eq("created_by", teacherId));
@@ -119,32 +124,60 @@ export default function AppPage() {
     })();
   }, [router]);
 
+  // Supabaseのアクセストークンは自動更新されるため、sendBeacon経由の記録（save-session-beacon）で
+  // 期限切れトークンを使ってしまわないよう、更新のたびに最新のトークンを保持しておく。
+  useEffect(() => {
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAccessToken(session?.access_token || null);
+    });
+    return () => listener?.subscription?.unsubscribe();
+  }, []);
+
   const handleAnswer = async (questionId, mode, correct) => {
     if (!studentId || !questionId) return;
     // questionIdがSupabase由来のUUIDでない場合（サンプルデータ使用時など）は記録しない
     const looksLikeUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(String(questionId));
     if (!looksLikeUuid) return;
-    await supabase.from("progress").insert({
-      student_id: studentId,
-      question_id: questionId,
-      mode,
-      correct,
-    });
+    try {
+      const { error } = await supabase.from("progress").insert({
+        student_id: studentId,
+        question_id: questionId,
+        mode,
+        correct,
+      });
+      if (error) console.error("progressの記録に失敗しました:", error);
+    } catch (e) {
+      console.error("progressの記録に失敗しました:", e);
+    }
   };
 
   const handleSessionEnd = async ({ mode, level, durationSeconds, items }) => {
     if (!studentId || !level) return;
-    await supabase.from("study_sessions").insert({
-      student_id: studentId,
-      mode,
-      level,
-      items,
-      duration_seconds: durationSeconds,
-    });
+    try {
+      const { error } = await supabase.from("study_sessions").insert({
+        student_id: studentId,
+        mode,
+        level,
+        items,
+        duration_seconds: durationSeconds,
+      });
+      if (error) console.error("study_sessionsの記録に失敗しました:", error);
+    } catch (e) {
+      console.error("study_sessionsの記録に失敗しました:", e);
+    }
   };
 
   const handleLogout = async () => {
+    // 1. まず現在計測中の学習セッションを確定・記録する（完了を待つ）
+    try {
+      await flushSessionRef.current();
+    } catch (e) {
+      console.error("ログアウト前の学習記録の確定に失敗しました:", e);
+    }
+    // 2. 記録が終わってからサインアウトする（signOutを先に行うと、認証切れの状態で
+    //    study_sessionsのinsertが失敗しうるため、必ずこの順序を保つ）
     await supabase.auth.signOut();
+    // 3. 最後にログイン画面へ遷移する
     router.replace("/login");
   };
 
@@ -171,8 +204,11 @@ export default function AppPage() {
       setNameMap={setNameMap}
       languageOptions={languageOptions}
       studentName={studentName}
+      studentId={studentId}
+      accessToken={accessToken}
       onAnswer={handleAnswer}
       onSessionEnd={handleSessionEnd}
+      onRegisterFlushSession={(fn) => { flushSessionRef.current = fn || (() => Promise.resolve()); }}
       onLogout={handleLogout}
       myPageHref="/mypage"
       allowLocalImport={false}
