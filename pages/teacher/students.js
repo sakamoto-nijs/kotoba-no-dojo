@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import Papa from "papaparse";
 import { supabase } from "../../lib/supabaseClient";
 import { MODE_LABELS, formatDateTime } from "../../lib/statsHelpers";
+import { resolveActivePage, hasPermission } from "../../lib/currentPage";
 
 const R = "3px";
 const SHADOW = "0 2px 0 rgba(36,31,26,0.10)";
@@ -114,6 +115,9 @@ function ResetPasswordModal({ student, onClose, session, onDone }) {
 export default function TeacherStudents() {
   const router = useRouter();
   const [session, setSession] = useState(null);
+  const [page, setPage] = useState(null);
+  const [pageLoading, setPageLoading] = useState(true);
+  const [permissionDenied, setPermissionDenied] = useState(false);
   const [classes, setClasses] = useState([]);
   const [students, setStudents] = useState([]);
   const [form, setForm] = useState({ studentCode: "", displayName: "", password: "", classId: "" });
@@ -134,13 +138,13 @@ export default function TeacherStudents() {
 
   const classNameById = (id) => classes.find((c) => c.id === id)?.name || "";
 
-  const loadStudents = async (teacherId) => {
+  const loadStudents = async (pageId) => {
     const { data } = await supabase.from("profiles").select("id, display_name, student_code, class_id, current_password_plaintext, created_at")
-      .eq("created_by", teacherId).eq("role", "student").order("created_at", { ascending: false });
+      .eq("page_id", pageId).eq("role", "student").order("created_at", { ascending: false });
     setStudents(data || []);
   };
-  const loadClasses = async (teacherId) => {
-    const { data } = await supabase.from("classes").select("id, name").eq("teacher_id", teacherId);
+  const loadClasses = async (pageId) => {
+    const { data } = await supabase.from("classes").select("id, name").eq("page_id", pageId);
     setClasses(data || []);
   };
 
@@ -149,8 +153,18 @@ export default function TeacherStudents() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.replace("/teacher/login"); return; }
       setSession(session);
-      loadStudents(session.user.id);
-      loadClasses(session.user.id);
+
+      const { needsSelection, page: activePage } = await resolveActivePage(supabase, session.user.id);
+      if (needsSelection) { router.replace("/teacher/select-page"); return; }
+      if (!activePage || !hasPermission(activePage, "students")) {
+        setPermissionDenied(true);
+        setPageLoading(false);
+        return;
+      }
+      setPage(activePage);
+      setPageLoading(false);
+      loadStudents(activePage.pageId);
+      loadClasses(activePage.pageId);
     })();
   }, [router]);
 
@@ -160,22 +174,22 @@ export default function TeacherStudents() {
     const res = await fetch("/api/teacher/create-student", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify(form),
+      body: JSON.stringify({ ...form, pageId: page.pageId }),
     });
     const json = await res.json();
     setLoading(false);
     if (!res.ok) { setError(json.error || "登録に失敗しました。"); return; }
     setMsg(`学生「${json.studentCode}」を登録しました。`);
     setForm({ studentCode: "", displayName: "", password: "", classId: "" });
-    loadStudents(session.user.id);
+    loadStudents(page.pageId);
   };
 
   const createClass = async (e) => {
     e.preventDefault();
     if (!newClassName.trim()) return;
-    await supabase.from("classes").insert({ teacher_id: session.user.id, name: newClassName.trim() });
+    await supabase.from("classes").insert({ teacher_id: session.user.id, page_id: page.pageId, name: newClassName.trim() });
     setNewClassName("");
-    loadClasses(session.user.id);
+    loadClasses(page.pageId);
   };
 
   const handleDeleteClassClick = (c) => {
@@ -191,7 +205,7 @@ export default function TeacherStudents() {
         setConfirmBusy(false); setConfirmInfo(null);
         if (delErr) { setError(`クラスの削除に失敗しました: ${delErr.message}`); return; }
         setMsg(`クラス「${c.name}」を削除しました。`);
-        await Promise.all([loadClasses(session.user.id), loadStudents(session.user.id)]);
+        await Promise.all([loadClasses(page.pageId), loadStudents(page.pageId)]);
       },
     });
   };
@@ -214,7 +228,7 @@ export default function TeacherStudents() {
           const json = await res.json();
           if (!res.ok) throw new Error(json.error || "削除に失敗しました。");
           setMsg(`「${student.display_name}」（${student.student_code}）を削除しました。${backedUpCount > 0 ? `学習記録${backedUpCount}件をCSVとしてダウンロードしました。` : ""}`);
-          await loadStudents(session.user.id);
+          await loadStudents(page.pageId);
         } catch (e) {
           setError(`削除に失敗しました: ${e.message || e}`);
         } finally {
@@ -257,14 +271,14 @@ export default function TeacherStudents() {
     const res = await fetch("/api/teacher/bulk-create-students", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({ students: rowsToSend }),
+      body: JSON.stringify({ students: rowsToSend, pageId: page.pageId }),
     });
     const json = await res.json();
     setBulkLoading(false);
     setBulkResults(json.results || [{ ok: false, error: json.error || "取り込みに失敗しました。" }]);
     setBulkText(""); setBulkFileName(null);
-    loadStudents(session.user.id);
-    loadClasses(session.user.id);
+    loadStudents(page.pageId);
+    loadClasses(page.pageId);
   };
 
   return (
@@ -275,6 +289,14 @@ export default function TeacherStudents() {
           <a href="/teacher/dashboard" style={{ fontSize: 13, color: "var(--ink-soft)" }}>← ダッシュボードへ戻る</a>
         </div>
 
+        {pageLoading ? (
+          <div style={{ textAlign: "center", color: "var(--ink-soft)", padding: "40px 0" }}>読み込み中…</div>
+        ) : permissionDenied ? (
+          <div style={{ background: "var(--vermilion-tint)", color: "var(--vermilion-deep)", border: "1.5px solid var(--vermilion)", borderRadius: R, padding: 24, textAlign: "center" }}>
+            このページの生徒・クラス管理を行う権限がありません。オーナーに権限の付与を依頼してください。
+          </div>
+        ) : (
+        <>
         <div style={{ background: "var(--surface)", border: "1.5px solid var(--ink)", borderRadius: R, boxShadow: SHADOW, padding: 20, marginBottom: 20 }}>
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>クラス</div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
@@ -376,13 +398,15 @@ export default function TeacherStudents() {
             </div>
           ))}
         </div>
+        </>
+        )}
       </div>
 
       <ResetPasswordModal
         student={resetTarget}
         session={session}
         onClose={() => setResetTarget(null)}
-        onDone={() => loadStudents(session.user.id)}
+        onDone={() => loadStudents(page.pageId)}
       />
       <ConfirmModal
         info={confirmInfo}
