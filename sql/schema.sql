@@ -256,3 +256,109 @@ create policy "教員は自分のセット名を更新できる" on question_set
 drop policy if exists "教員は自分のセット名を削除できる" on question_set_names;
 create policy "教員は自分のセット名を削除できる" on question_set_names for delete
   using (teacher_id = auth.uid());
+
+-- ============================================================
+-- 6. 教員の複数人管理（「ページ」機能）
+--    教員登録すると、自動的に「自分がオーナーの、自分専用のページ」が1つ作られる（1教員1オーナーページ）。
+--    オーナーは、教員管理ページから既存の教員アカウント（メールアドレス指定）を「メンバー」として
+--    自分のページに招待し、一緒に管理できるようにする。
+--
+-- 【フェーズ1（このブロック）の範囲】
+--   ・ページ／メンバーシップ／権限チェックボックスの土台とテーブルのみ作成する。
+--   ・classes / questions / csv_uploads / question_set_names / 学生profiles など既存データ側の
+--     RLSを「所属ページ」判定に切り替える作業（フェーズ2）はまだ含まない。そのため、この時点では
+--     メンバーを追加しても、既存のダッシュボード等でオーナーのデータを直接読み書きできるようには
+--     まだならない（教員管理ページでの招待・権限設定・自分の登録情報変更のみが可能になる）。
+-- ============================================================
+create table if not exists teacher_pages (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null references profiles(id) on delete cascade,
+  page_name text, -- 未設定なら画面側で「{オーナーの名前}先生のダッシュボード」を自動表示する
+  created_at timestamptz not null default now()
+);
+create index if not exists teacher_pages_owner_idx on teacher_pages(owner_id);
+
+-- メンバー一覧（オーナー本人の行も必ず1件含む。role='owner'の行は常に全権限を持つものとして扱う）
+create table if not exists teacher_page_members (
+  page_id uuid not null references teacher_pages(id) on delete cascade,
+  teacher_id uuid not null references profiles(id) on delete cascade,
+  role text not null default 'member' check (role in ('owner', 'member')),
+  can_manage_students boolean not null default false,  -- 生徒・クラスの管理
+  can_manage_questions boolean not null default false,  -- 問題・言語設定の管理
+  can_view_dashboard boolean not null default false,    -- ダッシュボードの閲覧
+  joined_at timestamptz not null default now(),
+  primary key (page_id, teacher_id)
+);
+create index if not exists teacher_page_members_teacher_idx on teacher_page_members(teacher_id);
+
+-- 既存の教員（この機能を追加する前から登録済みの人）に、まだ自分専用のページが無ければ作成する（1回限りの移行）
+insert into teacher_pages (owner_id)
+select p.id from profiles p
+where p.role = 'teacher'
+  and not exists (select 1 from teacher_pages tp where tp.owner_id = p.id);
+
+insert into teacher_page_members (page_id, teacher_id, role, can_manage_students, can_manage_questions, can_view_dashboard)
+select tp.id, tp.owner_id, 'owner', true, true, true
+from teacher_pages tp
+where not exists (
+  select 1 from teacher_page_members m where m.page_id = tp.id and m.teacher_id = tp.owner_id
+);
+
+alter table teacher_pages enable row level security;
+alter table teacher_page_members enable row level security;
+
+-- 【重要】teacher_page_members のSELECTポリシーの中で teacher_page_members 自身を
+-- サブクエリ参照すると、Postgresでは「infinite recursion detected in policy」エラーになる
+-- （ポリシーが適用されたテーブルへの参照は、そのポリシー自身の中であっても再度ポリシーが適用されるため）。
+-- これを避けるため、SECURITY DEFINER関数（RLSを内部的にバイパスする関数）経由で判定する。
+create or replace function is_page_member(target_page_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from teacher_page_members
+    where page_id = target_page_id and teacher_id = auth.uid()
+  );
+$$;
+grant execute on function is_page_member(uuid) to authenticated;
+
+create or replace function shares_page_with(other_teacher_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from teacher_page_members mine
+    join teacher_page_members theirs on theirs.page_id = mine.page_id
+    where mine.teacher_id = auth.uid() and theirs.teacher_id = other_teacher_id
+  );
+$$;
+grant execute on function shares_page_with(uuid) to authenticated;
+
+-- teacher_pages: 自分が所属している（メンバーである）ページは見られる。ページ名の変更はオーナーのみ。
+drop policy if exists "所属ページを見られる" on teacher_pages;
+create policy "所属ページを見られる" on teacher_pages for select
+  using (is_page_member(id));
+drop policy if exists "オーナーはページ名を変更できる" on teacher_pages;
+create policy "オーナーはページ名を変更できる" on teacher_pages for update
+  using (owner_id = auth.uid())
+  with check (owner_id = auth.uid());
+
+-- teacher_page_members: 自分が所属しているページのメンバー一覧は見られる（教員管理ページで一覧表示するため）。
+-- 【注意】メンバーの追加・削除・権限変更は、「オーナー本人かどうか」の確認を含めてservice_roleキーを使う
+-- APIルート側で厳密に行うため（pages/api/teacher/invite-member.js・remove-member.js・
+-- update-member-permissions.js を参照）、クライアントから直接insert/update/deleteできるポリシーはあえて用意しない。
+drop policy if exists "同じページのメンバーを見られる" on teacher_page_members;
+create policy "同じページのメンバーを見られる" on teacher_page_members for select
+  using (is_page_member(page_id));
+
+-- profiles: 教員管理ページでメンバーの名前を表示できるよう、同じページに所属する教員同士は
+-- 互いのプロフィール（表示名など）を見られるようにする（student_code等は教員には元々null）。
+drop policy if exists "同じページの教員同士はプロフィールを見られる" on profiles;
+create policy "同じページの教員同士はプロフィールを見られる" on profiles for select
+  using (shares_page_with(id));
