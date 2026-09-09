@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { checkPagePermission } from "../../../lib/pagePermissions";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -26,15 +27,18 @@ export default async function handler(req, res) {
   if (!studentId || !newPassword) return res.status(400).json({ error: "studentId / newPassword は必須です。" });
   if (newPassword.length < 6) return res.status(400).json({ error: "パスワードは6文字以上にしてください。" });
 
-  // その学生が本当にこの教員が発行した学生かどうかを確認（他の教員の学生を勝手に変更できないように）
+  // その学生が本当に自分の所属ページの学生かどうか、'students'権限があるかを確認する
+  // （他のページの学生のパスワードを勝手に変更できないように）
   const { data: studentProfile } = await supabaseAdmin
     .from("profiles")
-    .select("id, created_by, role")
+    .select("id, page_id, role")
     .eq("id", studentId)
     .single();
-  if (!studentProfile || studentProfile.role !== "student" || studentProfile.created_by !== userData.user.id) {
-    return res.status(403).json({ error: "自分が発行した学生のみパスワードを再設定できます。" });
+  if (!studentProfile || studentProfile.role !== "student" || !studentProfile.page_id) {
+    return res.status(403).json({ error: "指定された学生が見つかりません。" });
   }
+  const allowed = await checkPagePermission(supabaseAdmin, studentProfile.page_id, userData.user.id, "students");
+  if (!allowed) return res.status(403).json({ error: "このパスワードを再設定する権限がありません。" });
 
   const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(studentId, { password: newPassword });
   if (updateErr) return res.status(400).json({ error: `パスワード再設定に失敗しました: ${updateErr.message}` });
