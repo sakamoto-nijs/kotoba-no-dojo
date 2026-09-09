@@ -223,6 +223,7 @@ export default function TeacherDashboard() {
             <a href="/teacher/upload" style={navBtn}>問題管理（CSV）</a>
             <a href="/teacher/question-sets" style={navBtn}>問題セット</a>
             <a href="/teacher/language-settings" style={navBtn}>言語設定</a>
+            <a href="/teacher/manage" style={navBtn}>教員管理</a>
             <button onClick={signOut} style={{ ...navBtn, cursor: "pointer" }}>ログアウト</button>
           </div>
         </div>
