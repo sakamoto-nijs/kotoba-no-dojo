@@ -42,5 +42,30 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: `プロフィール作成に失敗しました: ${profileErr.message}` });
   }
 
+  // 教員登録と同時に、自分がオーナーの「自分専用のページ」を1つ作成する
+  // （後から「教員管理」ページで、他の教員をメンバーとして招待できるようにするための土台）
+  const { data: page, error: pageErr } = await supabaseAdmin
+    .from("teacher_pages")
+    .insert({ owner_id: created.user.id })
+    .select()
+    .single();
+  if (pageErr) {
+    await supabaseAdmin.auth.admin.deleteUser(created.user.id);
+    return res.status(400).json({ error: `ページ作成に失敗しました: ${pageErr.message}` });
+  }
+
+  const { error: memberErr } = await supabaseAdmin.from("teacher_page_members").insert({
+    page_id: page.id,
+    teacher_id: created.user.id,
+    role: "owner",
+    can_manage_students: true,
+    can_manage_questions: true,
+    can_view_dashboard: true,
+  });
+  if (memberErr) {
+    await supabaseAdmin.auth.admin.deleteUser(created.user.id);
+    return res.status(400).json({ error: `メンバー登録に失敗しました: ${memberErr.message}` });
+  }
+
   return res.status(200).json({ ok: true });
 }
