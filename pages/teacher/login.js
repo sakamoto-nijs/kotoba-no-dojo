@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../../lib/supabaseClient";
+import { resolveActivePage } from "../../lib/currentPage";
 
 const R = "3px";
 const SHADOW = "0 2px 0 rgba(36,31,26,0.10)";
@@ -18,10 +19,12 @@ export default function TeacherLogin() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) { setLoading(false); setError("メールアドレスまたはパスワードが正しくありません。"); return; }
+    // 所属ページが2つ以上ある場合は、先にどちらを操作するか選んでもらう
+    const { needsSelection } = await resolveActivePage(supabase, data.user.id);
     setLoading(false);
-    if (error) { setError("メールアドレスまたはパスワードが正しくありません。"); return; }
-    router.replace("/teacher/dashboard");
+    router.replace(needsSelection ? "/teacher/select-page" : "/teacher/dashboard");
   };
 
   const onForgotPassword = async () => {
