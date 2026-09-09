@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../../lib/supabaseClient";
 import { fetchAllRows } from "../../lib/fetchAllRows";
+import { resolveActivePage, hasPermission } from "../../lib/currentPage";
 
 const R = "3px";
 const SHADOW = "0 2px 0 rgba(36,31,26,0.10)";
@@ -16,6 +17,8 @@ function emptySlots() {
 export default function LanguageSettings() {
   const router = useRouter();
   const [session, setSession] = useState(null);
+  const [page, setPage] = useState(null);
+  const [permissionDenied, setPermissionDenied] = useState(false);
   const [slots, setSlots] = useState(emptySlots());
   const [original, setOriginal] = useState(emptySlots());
   const [loading, setLoading] = useState(true);
@@ -28,17 +31,26 @@ export default function LanguageSettings() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.replace("/teacher/login"); return; }
       setSession(session);
-      await loadData(session);
+
+      const { needsSelection, page: activePage } = await resolveActivePage(supabase, session.user.id);
+      if (needsSelection) { router.replace("/teacher/select-page"); return; }
+      if (!activePage || !hasPermission(activePage, "questions")) {
+        setPermissionDenied(true);
+        setLoading(false);
+        return;
+      }
+      setPage(activePage);
+      await loadData(activePage);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
-  const loadData = async (sess) => {
+  const loadData = async (activePage) => {
     setLoading(true);
     setError(null); setMsg(null);
     try {
       const rows = await fetchAllRows(() =>
-        supabase.from("meaning_languages").select("slot, language_name, visible").eq("teacher_id", sess.user.id)
+        supabase.from("meaning_languages").select("slot, language_name, visible").eq("page_id", activePage.pageId)
       );
       const next = emptySlots();
       (rows || []).forEach((r) => { next[r.slot] = { name: r.language_name || "", visible: r.visible }; });
@@ -75,18 +87,18 @@ export default function LanguageSettings() {
         const wasSet = (original[s].name || "").trim();
         if (name === wasSet && visible === original[s].visible) continue; // 変更なし
         if (name) {
-          toUpsert.push({ teacher_id: session.user.id, slot: s, language_name: name, visible, updated_at: new Date().toISOString() });
+          toUpsert.push({ teacher_id: session.user.id, page_id: page.pageId, slot: s, language_name: name, visible, updated_at: new Date().toISOString() });
         } else if (wasSet) {
           toDeleteSlots.push(s);
         }
       }
       if (toUpsert.length) {
-        const { error: upErr } = await supabase.from("meaning_languages").upsert(toUpsert, { onConflict: "teacher_id,slot" });
+        const { error: upErr } = await supabase.from("meaning_languages").upsert(toUpsert, { onConflict: "page_id,slot" });
         if (upErr) throw upErr;
       }
       if (toDeleteSlots.length) {
         const { error: delErr } = await supabase.from("meaning_languages").delete()
-          .eq("teacher_id", session.user.id).in("slot", toDeleteSlots);
+          .eq("page_id", page.pageId).in("slot", toDeleteSlots);
         if (delErr) throw delErr;
       }
       setOriginal(slots);
@@ -117,6 +129,10 @@ export default function LanguageSettings() {
 
         {loading ? (
           <div style={{ textAlign: "center", color: "var(--ink-soft)", padding: "40px 0" }}>読み込み中…</div>
+        ) : permissionDenied ? (
+          <div style={{ background: "var(--vermilion-tint)", color: "var(--vermilion-deep)", border: "1.5px solid var(--vermilion)", borderRadius: R, padding: 24, textAlign: "center" }}>
+            このページの問題・言語設定を管理する権限がありません。オーナーに権限の付与を依頼してください。
+          </div>
         ) : (
           <>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
