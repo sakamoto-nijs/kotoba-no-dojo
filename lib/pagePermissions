@@ -1,0 +1,18 @@
+// pages/api/teacher/*.js から共通で使う、ページ権限チェックのヘルパー。
+// service_roleキーを使うAPIルートはRLSをバイパスするため、ここで明示的に
+// 「このteacherIdは、このpageIdで、このperm（'students'|'questions'|'view'）を持っているか」を確認する。
+export async function checkPagePermission(supabaseAdmin, pageId, teacherId, perm) {
+  if (!pageId || !teacherId) return false;
+  const { data: membership } = await supabaseAdmin
+    .from("teacher_page_members")
+    .select("role, can_manage_students, can_manage_questions, can_view_dashboard")
+    .eq("page_id", pageId)
+    .eq("teacher_id", teacherId)
+    .maybeSingle();
+  if (!membership) return false;
+  if (membership.role === "owner") return true;
+  if (perm === "students") return !!membership.can_manage_students;
+  if (perm === "questions") return !!membership.can_manage_questions;
+  if (perm === "view") return !!(membership.can_view_dashboard || membership.can_manage_students || membership.can_manage_questions);
+  return false;
+}
