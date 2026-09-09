@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../../lib/supabaseClient";
 import { fetchAllRows } from "../../lib/fetchAllRows";
+import { resolveActivePage, hasPermission } from "../../lib/currentPage";
 
 const R = "3px";
 const LEVEL_KEYS = ["N5", "N4", "N3", "N2", "N1"];
@@ -24,6 +25,9 @@ const LEGACY_FALLBACK_TYPES = ["flashcardReading", "flashcardMeaning", "vocab4",
 export default function QuestionSets() {
   const router = useRouter();
   const [session, setSession] = useState(null);
+  const [page, setPage] = useState(null);
+  const [pageLoading, setPageLoading] = useState(true);
+  const [permissionDenied, setPermissionDenied] = useState(false);
   const [category, setCategory] = useState("flashcardReading");
   const [level, setLevel] = useState("N5");
   const [counts, setCounts] = useState({});
@@ -39,22 +43,32 @@ export default function QuestionSets() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.replace("/teacher/login"); return; }
       setSession(session);
+
+      const { needsSelection, page: activePage } = await resolveActivePage(supabase, session.user.id);
+      if (needsSelection) { router.replace("/teacher/select-page"); return; }
+      if (!activePage || !hasPermission(activePage, "questions")) {
+        setPermissionDenied(true);
+        setPageLoading(false);
+        return;
+      }
+      setPage(activePage);
+      setPageLoading(false);
     })();
   }, [router]);
 
   useEffect(() => {
-    if (!session) return;
+    if (!session || !page) return;
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, category, level]);
+  }, [session, page, category, level]);
 
   const loadData = async () => {
     setLoading(true);
     setError(null); setMsg(null);
     try {
       const makeQuery = LEGACY_FALLBACK_TYPES.includes(category)
-        ? () => supabase.from("questions").select("set_no").eq("level", level).eq("created_by", session.user.id).in("type", ["vocab", category])
-        : () => supabase.from("questions").select("set_no").eq("level", level).eq("created_by", session.user.id).eq("type", category);
+        ? () => supabase.from("questions").select("set_no").eq("level", level).eq("page_id", page.pageId).in("type", ["vocab", category])
+        : () => supabase.from("questions").select("set_no").eq("level", level).eq("page_id", page.pageId).eq("type", category);
       const qs = await fetchAllRows(makeQuery);
       const c = {};
       (qs || []).forEach((q) => { const n = q.set_no || 1; c[n] = (c[n] || 0) + 1; });
@@ -62,7 +76,7 @@ export default function QuestionSets() {
 
       const nameRows = await fetchAllRows(() =>
         supabase.from("question_set_names").select("set_no, name")
-          .eq("teacher_id", session.user.id).eq("type", category).eq("level", level)
+          .eq("page_id", page.pageId).eq("type", category).eq("level", level)
       );
       const n = {};
       (nameRows || []).forEach((r) => { n[r.set_no] = r.name; });
@@ -93,18 +107,18 @@ export default function QuestionSets() {
         const original = (originalNames[n] || "").trim();
         if (value === original) continue;
         if (value) {
-          toUpsert.push({ teacher_id: session.user.id, type: category, level, set_no: n, name: value, updated_at: new Date().toISOString() });
+          toUpsert.push({ teacher_id: session.user.id, page_id: page.pageId, type: category, level, set_no: n, name: value, updated_at: new Date().toISOString() });
         } else if (original) {
           toDeleteSetNos.push(n);
         }
       }
       if (toUpsert.length) {
-        const { error: upErr } = await supabase.from("question_set_names").upsert(toUpsert, { onConflict: "teacher_id,type,level,set_no" });
+        const { error: upErr } = await supabase.from("question_set_names").upsert(toUpsert, { onConflict: "page_id,type,level,set_no" });
         if (upErr) throw upErr;
       }
       if (toDeleteSetNos.length) {
         const { error: delErr } = await supabase.from("question_set_names").delete()
-          .eq("teacher_id", session.user.id).eq("type", category).eq("level", level).in("set_no", toDeleteSetNos);
+          .eq("page_id", page.pageId).eq("type", category).eq("level", level).in("set_no", toDeleteSetNos);
         if (delErr) throw delErr;
       }
       setOriginalNames(names);
@@ -142,7 +156,13 @@ export default function QuestionSets() {
         {error && <div style={errorBoxStyle}>{error}</div>}
         {msg && <div style={msgBoxStyle}>{msg}</div>}
 
-        {loading ? (
+        {pageLoading ? (
+          <div style={{ textAlign: "center", color: "var(--ink-soft)", padding: "40px 0" }}>読み込み中…</div>
+        ) : permissionDenied ? (
+          <div style={{ background: "var(--vermilion-tint)", color: "var(--vermilion-deep)", border: "1.5px solid var(--vermilion)", borderRadius: R, padding: 24, textAlign: "center" }}>
+            このページの問題・言語設定を管理する権限がありません。オーナーに権限の付与を依頼してください。
+          </div>
+        ) : loading ? (
           <div style={{ textAlign: "center", color: "var(--ink-soft)", padding: "40px 0" }}>読み込み中…</div>
         ) : (
           <>
