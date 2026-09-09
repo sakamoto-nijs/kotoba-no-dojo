@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { checkPagePermission } from "../../../lib/pagePermissions";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -26,16 +27,20 @@ export default async function handler(req, res) {
     .single();
   if (requesterProfile?.role !== "teacher") return res.status(403).json({ error: "教員のみ実行できます。" });
 
-  const { students } = req.body || {};
+  const { students, pageId } = req.body || {};
   if (!Array.isArray(students) || students.length === 0) {
     return res.status(400).json({ error: "studentsが空です。" });
   }
+  if (!pageId) return res.status(400).json({ error: "pageId は必須です。" });
 
-  // クラス名 → class_id を解決するためのキャッシュ（無ければ新規作成）
+  const allowed = await checkPagePermission(supabaseAdmin, pageId, userData.user.id, "students");
+  if (!allowed) return res.status(403).json({ error: "このページで学生を登録する権限がありません。" });
+
+  // クラス名 → class_id を解決するためのキャッシュ（無ければ新規作成。同じページの中で解決する）
   const { data: existingClasses } = await supabaseAdmin
     .from("classes")
     .select("id, name")
-    .eq("teacher_id", userData.user.id);
+    .eq("page_id", pageId);
   const classByName = new Map((existingClasses || []).map((c) => [c.name, c.id]));
 
   const results = [];
@@ -63,7 +68,7 @@ export default async function handler(req, res) {
       } else {
         const { data: newClass, error: classErr } = await supabaseAdmin
           .from("classes")
-          .insert({ teacher_id: userData.user.id, name: className })
+          .insert({ teacher_id: userData.user.id, page_id: pageId, name: className })
           .select("id")
           .single();
         if (!classErr && newClass) {
@@ -91,6 +96,7 @@ export default async function handler(req, res) {
       student_code: studentCode,
       class_id: classId,
       created_by: userData.user.id,
+      page_id: pageId,
       current_password_plaintext: password,
     });
     if (profileErr) {
