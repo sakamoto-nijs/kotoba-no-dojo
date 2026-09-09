@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../../lib/supabaseClient";
 import { fetchAllRows } from "../../lib/fetchAllRows";
+import { resolveActivePage, hasPermission } from "../../lib/currentPage";
 import {
   MODE_LABELS, QUIZ_MODES, FLASHCARD_MODES, ALL_MODES, LEVEL_KEYS,
   REVIEW_COUNT_DEFINITION, buildStats, formatDuration, formatDateTime,
@@ -100,6 +101,9 @@ export default function TeacherDashboard() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [teacherName, setTeacherName] = useState("");
+  const [page, setPage] = useState(null); // { pageId, role, pageName, canManageStudents, canManageQuestions, canViewDashboard }
+  const [membershipCount, setMembershipCount] = useState(1);
+  const [permissionDenied, setPermissionDenied] = useState(false);
   const [rows, setRows] = useState([]);
   const [classes, setClasses] = useState([]);
   const [classFilter, setClassFilter] = useState("");
@@ -118,7 +122,23 @@ export default function TeacherDashboard() {
       if (!me || me.role !== "teacher") { router.replace("/teacher/login"); return; }
       setTeacherName(me.display_name);
 
-      const { data: classList } = await supabase.from("classes").select("id, name").eq("teacher_id", session.user.id);
+      // 今どのページを操作するか（複数のページに所属している場合は選択画面へ誘導する）
+      const { needsSelection, page: activePage, memberships } = await resolveActivePage(supabase, session.user.id);
+      if (needsSelection) { router.replace("/teacher/select-page"); return; }
+      if (!activePage) {
+        setLoading(false);
+        return;
+      }
+      setPage(activePage);
+      setMembershipCount(memberships.length);
+
+      if (!hasPermission(activePage, "view")) {
+        setPermissionDenied(true);
+        setLoading(false);
+        return;
+      }
+
+      const { data: classList } = await supabase.from("classes").select("id, name").eq("page_id", activePage.pageId);
       setClasses(classList || []);
       const classNameById = new Map((classList || []).map((c) => [c.id, c.name]));
 
@@ -126,7 +146,7 @@ export default function TeacherDashboard() {
         supabase
           .from("profiles")
           .select("id, display_name, student_code, class_id, current_password_plaintext, created_at")
-          .eq("created_by", session.user.id)
+          .eq("page_id", activePage.pageId)
           .eq("role", "student")
           .order("created_at", { ascending: false })
       );
@@ -137,7 +157,7 @@ export default function TeacherDashboard() {
       const [progress, sessions, questions] = await Promise.all([
         fetchAllRows(() => supabase.from("progress").select("student_id, question_id, mode, correct, answered_at").in("student_id", studentIds)),
         fetchAllRows(() => supabase.from("study_sessions").select("student_id, mode, level, items, duration_seconds, started_at").in("student_id", studentIds)),
-        fetchAllRows(() => supabase.from("questions").select("id, level").eq("created_by", session.user.id)),
+        fetchAllRows(() => supabase.from("questions").select("id, level").eq("page_id", activePage.pageId)),
       ]);
       const questionLevelMap = new Map((questions || []).map((q) => [q.id, q.level]));
 
@@ -215,8 +235,16 @@ export default function TeacherDashboard() {
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid var(--ink)", paddingBottom: 16, marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
           <div>
-            <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 24, fontWeight: 800 }}>教員管理画面</div>
-            <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>{teacherName} さん</div>
+            <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 24, fontWeight: 800 }}>{page ? page.pageName : "教員管理画面"}</div>
+            <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>
+              {teacherName} さん
+              {membershipCount > 1 && (
+                <>
+                  {" ／ "}
+                  <a href="/teacher/select-page" style={{ color: "var(--indigo)" }}>ページを切り替える</a>
+                </>
+              )}
+            </div>
           </div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <a href="/teacher/students" style={navBtn}>学生登録</a>
@@ -228,7 +256,11 @@ export default function TeacherDashboard() {
           </div>
         </div>
 
-        {loading ? (
+        {permissionDenied ? (
+          <div style={{ background: "var(--vermilion-tint)", color: "var(--vermilion-deep)", border: "1.5px solid var(--vermilion)", borderRadius: R, padding: 24, textAlign: "center" }}>
+            このページのダッシュボードを閲覧する権限がありません。オーナーに権限の付与を依頼してください。
+          </div>
+        ) : loading ? (
           <div style={{ color: "var(--ink-soft)" }}>読み込み中…</div>
         ) : rows.length === 0 ? (
           <div style={{ background: "var(--surface)", border: "1.5px solid var(--ink)", borderRadius: R, padding: 32, textAlign: "center", color: "var(--ink-soft)" }}>
