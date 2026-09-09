@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { checkPagePermission } from "../../../lib/pagePermissions";
 
 // このファイルはサーバー上でのみ実行されます（ブラウザには送られません）。
 // service_role キーはここでのみ使用し、絶対にフロントエンドのコードには書かないでください。
@@ -29,11 +30,23 @@ export default async function handler(req, res) {
     .single();
   if (requesterProfile?.role !== "teacher") return res.status(403).json({ error: "教員のみ実行できます。" });
 
-  const { studentCode, password, displayName, classId } = req.body || {};
-  if (!studentCode || !password || !displayName) {
-    return res.status(400).json({ error: "studentCode / password / displayName は必須です。" });
+  const { studentCode, password, displayName, classId, pageId } = req.body || {};
+  if (!studentCode || !password || !displayName || !pageId) {
+    return res.status(400).json({ error: "studentCode / password / displayName / pageId は必須です。" });
   }
   if (password.length < 6) return res.status(400).json({ error: "パスワードは6文字以上にしてください。" });
+
+  // このページで「生徒・クラスの管理」権限を持っているかを確認する
+  const allowed = await checkPagePermission(supabaseAdmin, pageId, userData.user.id, "students");
+  if (!allowed) return res.status(403).json({ error: "このページで学生を登録する権限がありません。" });
+
+  // classIdを指定する場合、そのクラスが同じページのものであることを確認する（他ページへの誤紐付け防止）
+  if (classId) {
+    const { data: classRow } = await supabaseAdmin.from("classes").select("id, page_id").eq("id", classId).single();
+    if (!classRow || classRow.page_id !== pageId) {
+      return res.status(400).json({ error: "指定されたクラスがこのページのものではありません。" });
+    }
+  }
 
   const email = studentCodeToEmail(studentCode);
 
@@ -51,6 +64,7 @@ export default async function handler(req, res) {
     student_code: studentCode.trim(),
     class_id: classId || null,
     created_by: userData.user.id,
+    page_id: pageId,
     current_password_plaintext: password,
   });
   if (profileErr) {
