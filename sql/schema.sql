@@ -362,3 +362,159 @@ create policy "同じページのメンバーを見られる" on teacher_page_me
 drop policy if exists "同じページの教員同士はプロフィールを見られる" on profiles;
 create policy "同じページの教員同士はプロフィールを見られる" on profiles for select
   using (shares_page_with(id));
+
+-- ============================================================
+-- 8. フェーズ2：既存データ（クラス・学生・問題・CSV履歴・問題セット名・言語設定）を
+--    「所属ページ」＋権限チェックボックスで判定するように切り替える。
+--    これにより、教員管理ページで招待・権限設定したメンバー同士が、実際に同じデータを
+--    一緒に見る・編集できるようになる。
+-- ============================================================
+
+-- 権限チェック用のSECURITY DEFINER関数（自己参照によるinfinite recursionを避けるため関数化する）。
+-- オーナーは常にtrue。メンバーは該当のチェックボックスがtrueならtrue。
+-- perm: 'students'（生徒・クラス管理）／ 'questions'（問題・言語設定管理）／
+--       'view'（閲覧できれば足りる操作。上記どちらかの管理権限があれば閲覧もできるものとして扱う）
+create or replace function page_permission(target_page_id uuid, perm text)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from teacher_page_members m
+    where m.page_id = target_page_id and m.teacher_id = auth.uid()
+      and (
+        m.role = 'owner'
+        or (perm = 'students' and m.can_manage_students)
+        or (perm = 'questions' and m.can_manage_questions)
+        or (perm = 'view' and (m.can_view_dashboard or m.can_manage_students or m.can_manage_questions))
+      )
+  );
+$$;
+grant execute on function page_permission(uuid, text) to authenticated;
+
+-- classes に page_id を追加し、既存データを移行する（既存教員は自分のページに紐づく）
+alter table classes add column if not exists page_id uuid references teacher_pages(id);
+update classes set page_id = (select tp.id from teacher_pages tp where tp.owner_id = classes.teacher_id) where page_id is null;
+
+-- questions に page_id を追加し、既存データを移行する
+alter table questions add column if not exists page_id uuid references teacher_pages(id);
+update questions set page_id = (select tp.id from teacher_pages tp where tp.owner_id = questions.created_by) where page_id is null and created_by is not null;
+
+-- csv_uploads に page_id を追加し、既存データを移行する
+alter table csv_uploads add column if not exists page_id uuid references teacher_pages(id);
+update csv_uploads set page_id = (select tp.id from teacher_pages tp where tp.owner_id = csv_uploads.teacher_id) where page_id is null;
+
+-- question_set_names に page_id を追加し、既存データを移行する
+-- （複数教員で1つの名前を共有するため、一意制約を teacher_id 単位から page_id 単位に変更する）
+alter table question_set_names add column if not exists page_id uuid references teacher_pages(id);
+update question_set_names set page_id = (select tp.id from teacher_pages tp where tp.owner_id = question_set_names.teacher_id) where page_id is null;
+alter table question_set_names drop constraint if exists question_set_names_page_unique;
+alter table question_set_names add constraint question_set_names_page_unique unique (page_id, type, level, set_no);
+
+-- meaning_languages：このテーブルはこれまで schema.sql に記載が無かった（Supabase上で直接作成された可能性がある）。
+-- 既存プロジェクトへの追加保険として、無ければ作成する（既にある場合はこの create table は何もしない）。
+-- 【重要】もし既にこのテーブルにRLSポリシーが設定されている場合、そのポリシー名はこのファイルからは分からないため
+-- 自動では削除できません。この移行の後、Supabaseダッシュボードの「Database > Policies」で
+-- meaning_languages に teacher_id 単位の古いポリシーが残っていないか、念のため確認してください
+-- （残っていても直ちに情報漏洩には繋がりませんが、意図しない編集を許してしまう可能性があります）。
+create table if not exists meaning_languages (
+  id uuid primary key default gen_random_uuid(),
+  teacher_id uuid not null references profiles(id) on delete cascade,
+  slot int not null check (slot >= 1 and slot <= 10),
+  language_name text not null,
+  visible boolean not null default true,
+  updated_at timestamptz not null default now(),
+  unique (teacher_id, slot)
+);
+alter table meaning_languages add column if not exists page_id uuid references teacher_pages(id);
+update meaning_languages set page_id = (select tp.id from teacher_pages tp where tp.owner_id = meaning_languages.teacher_id) where page_id is null;
+alter table meaning_languages drop constraint if exists meaning_languages_page_unique;
+alter table meaning_languages add constraint meaning_languages_page_unique unique (page_id, slot);
+alter table meaning_languages enable row level security;
+
+-- 学生の profiles に page_id を追加し、既存データを移行する
+alter table profiles add column if not exists page_id uuid references teacher_pages(id);
+update profiles set page_id = (select tp.id from teacher_pages tp where tp.owner_id = profiles.created_by) where page_id is null and role = 'student' and created_by is not null;
+
+-- ---- RLSの更新 ----
+
+-- classes: 所属ページのメンバー（閲覧権限がある人）は見られる。追加・削除は'students'権限が必要。
+drop policy if exists "教員は自分のクラスを見る" on classes;
+drop policy if exists "教員は自分のクラスを作れる" on classes;
+drop policy if exists "教員は自分のクラスを削除できる" on classes;
+create policy "ページのメンバーはクラスを見る" on classes for select
+  using (page_id is not null and page_permission(page_id, 'view'));
+create policy "権限のあるメンバーはクラスを作れる" on classes for insert
+  with check (page_id is not null and page_permission(page_id, 'students'));
+create policy "権限のあるメンバーはクラスを削除できる" on classes for delete
+  using (page_id is not null and page_permission(page_id, 'students'));
+
+-- profiles（学生）: 所属ページのメンバー（閲覧権限がある人）は見られる。
+-- （学生情報の更新・削除は今まで通りservice_roleキーを使うAPIルート経由のみのため、update/deleteポリシーの追加は不要）
+drop policy if exists "教員は自分が発行した学生を見る" on profiles;
+create policy "ページのメンバーは学生を見る" on profiles for select
+  using (role = 'student' and page_id is not null and page_permission(page_id, 'view'));
+
+-- questions: 追加・削除を、これまでの「教員なら誰でも（他の教員の問題も削除できてしまっていた）」から
+-- 「そのページで'questions'権限を持つ人のみ」に厳格化する。閲覧は今まで通り誰でも（学生が解答するため）変更しない。
+drop policy if exists "教員は問題を追加できる" on questions;
+create policy "権限のあるメンバーは問題を追加できる" on questions for insert
+  with check (page_id is not null and page_permission(page_id, 'questions'));
+drop policy if exists "教員は問題を削除できる" on questions;
+create policy "権限のあるメンバーは問題を削除できる" on questions for delete
+  using (page_id is not null and page_permission(page_id, 'questions'));
+
+-- csv_uploads: 所属ページで'view'権限がある人は見られる。書き込み・削除・更新は'questions'権限が必要。
+drop policy if exists "教員は自分のアップロード履歴を見られる" on csv_uploads;
+drop policy if exists "教員はアップロード履歴を作れる" on csv_uploads;
+drop policy if exists "教員は自分のアップロード履歴を削除できる" on csv_uploads;
+drop policy if exists "教員は自分のアップロード履歴を更新できる" on csv_uploads;
+create policy "権限のあるメンバーはアップロード履歴を見られる" on csv_uploads for select
+  using (page_id is not null and page_permission(page_id, 'view'));
+create policy "権限のあるメンバーはアップロード履歴を作れる" on csv_uploads for insert
+  with check (page_id is not null and page_permission(page_id, 'questions'));
+create policy "権限のあるメンバーはアップロード履歴を削除できる" on csv_uploads for delete
+  using (page_id is not null and page_permission(page_id, 'questions'));
+create policy "権限のあるメンバーはアップロード履歴を更新できる" on csv_uploads for update
+  using (page_id is not null and page_permission(page_id, 'questions'));
+
+-- question_set_names: 作成・更新・削除を'questions'権限に切り替える（閲覧は今まで通り全ログインユーザーのまま変更しない）
+drop policy if exists "教員は自分のセット名を作成できる" on question_set_names;
+create policy "権限のあるメンバーはセット名を作成できる" on question_set_names for insert
+  with check (page_id is not null and page_permission(page_id, 'questions'));
+drop policy if exists "教員は自分のセット名を更新できる" on question_set_names;
+create policy "権限のあるメンバーはセット名を更新できる" on question_set_names for update
+  using (page_id is not null and page_permission(page_id, 'questions'));
+drop policy if exists "教員は自分のセット名を削除できる" on question_set_names;
+create policy "権限のあるメンバーはセット名を削除できる" on question_set_names for delete
+  using (page_id is not null and page_permission(page_id, 'questions'));
+
+-- meaning_languages: 学生も閲覧できる必要がある（学生画面の言語選択に使うため）。編集は'questions'権限。
+drop policy if exists "ログインユーザーは言語設定を見られる" on meaning_languages;
+create policy "ログインユーザーは言語設定を見られる" on meaning_languages for select
+  using (auth.uid() is not null);
+drop policy if exists "権限のあるメンバーは言語設定を作成できる" on meaning_languages;
+create policy "権限のあるメンバーは言語設定を作成できる" on meaning_languages for insert
+  with check (page_id is not null and page_permission(page_id, 'questions'));
+drop policy if exists "権限のあるメンバーは言語設定を更新できる" on meaning_languages;
+create policy "権限のあるメンバーは言語設定を更新できる" on meaning_languages for update
+  using (page_id is not null and page_permission(page_id, 'questions'));
+drop policy if exists "権限のあるメンバーは言語設定を削除できる" on meaning_languages;
+create policy "権限のあるメンバーは言語設定を削除できる" on meaning_languages for delete
+  using (page_id is not null and page_permission(page_id, 'questions'));
+
+-- progress / study_sessions: 教員側の閲覧を「担当学生（created_by）」から「同じページに所属する学生」に変更
+drop policy if exists "教員は担当学生の進捗を見られる" on progress;
+create policy "ページのメンバーは学生の進捗を見られる" on progress for select
+  using (exists (
+    select 1 from profiles s where s.id = progress.student_id
+      and s.page_id is not null and page_permission(s.page_id, 'view')
+  ));
+drop policy if exists "教員は担当学生の学習セッションを見られる" on study_sessions;
+create policy "ページのメンバーは学生の学習セッションを見られる" on study_sessions for select
+  using (exists (
+    select 1 from profiles s where s.id = study_sessions.student_id
+      and s.page_id is not null and page_permission(s.page_id, 'view')
+  ));
