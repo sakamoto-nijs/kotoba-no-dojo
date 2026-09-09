@@ -4,6 +4,7 @@ import Papa from "papaparse";
 import { supabase } from "../../lib/supabaseClient";
 import { fetchAllRows } from "../../lib/fetchAllRows";
 import { MODE_LABELS, formatDateTime } from "../../lib/statsHelpers";
+import { resolveActivePage, hasPermission } from "../../lib/currentPage";
 
 const R = "3px";
 const SHADOW = "0 2px 0 rgba(36,31,26,0.10)";
@@ -244,6 +245,9 @@ function ConfirmModal({ info, busy, onCancel, onConfirm }) {
 export default function TeacherUpload() {
   const router = useRouter();
   const [session, setSession] = useState(null);
+  const [page, setPage] = useState(null);
+  const [pageLoading, setPageLoading] = useState(true);
+  const [permissionDenied, setPermissionDenied] = useState(false);
   const [text, setText] = useState("");
   const [fileName, setFileName] = useState(null);
   const [error, setError] = useState(null);
@@ -258,10 +262,10 @@ export default function TeacherUpload() {
   const [batchBusyId, setBatchBusyId] = useState(null);
   const fileRef = useRef(null);
 
-  const loadExistingCount = async (sess) => {
-    const teacherId = (sess || session)?.user?.id;
-    if (!teacherId) return;
-    const { count } = await supabase.from("questions").select("id", { count: "exact", head: true }).eq("created_by", teacherId);
+  const loadExistingCount = async (pageId) => {
+    const targetPageId = pageId || page?.pageId;
+    if (!targetPageId) return;
+    const { count } = await supabase.from("questions").select("id", { count: "exact", head: true }).eq("page_id", targetPageId);
     setExistingCount(count ?? 0);
   };
 
@@ -280,7 +284,17 @@ export default function TeacherUpload() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.replace("/teacher/login"); return; }
       setSession(session);
-      await Promise.all([loadExistingCount(session), loadHistory()]);
+
+      const { needsSelection, page: activePage } = await resolveActivePage(supabase, session.user.id);
+      if (needsSelection) { router.replace("/teacher/select-page"); return; }
+      if (!activePage || !hasPermission(activePage, "questions")) {
+        setPermissionDenied(true);
+        setPageLoading(false);
+        return;
+      }
+      setPage(activePage);
+      setPageLoading(false);
+      await Promise.all([loadExistingCount(activePage.pageId), loadHistory()]);
     })();
   }, [router]);
 
@@ -301,11 +315,11 @@ export default function TeacherUpload() {
     setLoading(true);
     const { data: uploadRec, error: upErr } = await supabase
       .from("csv_uploads")
-      .insert({ teacher_id: session.user.id, file_name: fileName || "(貼り付け)", mode: "add", row_count: rows.length, raw_csv: text })
+      .insert({ teacher_id: session.user.id, page_id: page.pageId, file_name: fileName || "(貼り付け)", mode: "add", row_count: rows.length, raw_csv: text })
       .select().single();
     if (upErr) { setLoading(false); setError(`アップロード履歴の記録に失敗しました: ${upErr.message}`); return; }
 
-    const withCreator = rows.map((r) => ({ ...r, created_by: session.user.id, upload_id: uploadRec.id }));
+    const withCreator = rows.map((r) => ({ ...r, created_by: session.user.id, page_id: page.pageId, upload_id: uploadRec.id }));
     const { error: insertErr } = await supabase.from("questions").insert(withCreator);
     setLoading(false);
     if (insertErr) {
@@ -323,7 +337,7 @@ export default function TeacherUpload() {
     setConfirmBusy(true);
     setLoading(true);
     try {
-      const existingQs = await fetchAllRows(() => supabase.from("questions").select("id").eq("created_by", session.user.id));
+      const existingQs = await fetchAllRows(() => supabase.from("questions").select("id").eq("page_id", page.pageId));
       const existingIds = (existingQs || []).map((q) => q.id);
 
       let backedUpCount = 0;
@@ -332,7 +346,7 @@ export default function TeacherUpload() {
       }
 
       // 削除前に、既存のアップロード履歴を「削除済み」として記録しておく
-      await supabase.from("csv_uploads").update({ deleted_at: new Date().toISOString() }).is("deleted_at", null);
+      await supabase.from("csv_uploads").update({ deleted_at: new Date().toISOString() }).eq("page_id", page.pageId).is("deleted_at", null);
 
       if (existingIds.length) {
         await deleteQuestionsByIds(existingIds);
@@ -340,11 +354,11 @@ export default function TeacherUpload() {
 
       const { data: uploadRec, error: upErr } = await supabase
         .from("csv_uploads")
-        .insert({ teacher_id: session.user.id, file_name: fileName || "(貼り付け)", mode: "replace", row_count: rows.length, raw_csv: text })
+        .insert({ teacher_id: session.user.id, page_id: page.pageId, file_name: fileName || "(貼り付け)", mode: "replace", row_count: rows.length, raw_csv: text })
         .select().single();
       if (upErr) throw upErr;
 
-      const withCreator = rows.map((r) => ({ ...r, created_by: session.user.id, upload_id: uploadRec.id }));
+      const withCreator = rows.map((r) => ({ ...r, created_by: session.user.id, page_id: page.pageId, upload_id: uploadRec.id }));
       const { error: insErr } = await supabase.from("questions").insert(withCreator);
       if (insErr) throw insErr;
 
@@ -390,7 +404,7 @@ export default function TeacherUpload() {
     setConfirmBusy(true);
     setLoading(true);
     try {
-      const existingQs = await fetchAllRows(() => supabase.from("questions").select("id").eq("created_by", session.user.id));
+      const existingQs = await fetchAllRows(() => supabase.from("questions").select("id").eq("page_id", page.pageId));
       const existingIds = (existingQs || []).map((q) => q.id);
 
       // 1. 削除される問題に紐づく学習記録を、削除前にバックアップCSVとしてダウンロード
@@ -412,7 +426,7 @@ export default function TeacherUpload() {
       }
 
       // 4. アップロード履歴も全削除（「新規に追加」と違い、履歴自体を空にする）
-      const { error: histDelErr } = await supabase.from("csv_uploads").delete().eq("teacher_id", session.user.id);
+      const { error: histDelErr } = await supabase.from("csv_uploads").delete().eq("page_id", page.pageId);
       if (histDelErr) throw histDelErr;
 
       setMsg(`全リセット完了：問題${existingIds.length}件・アップロード履歴${uploads.length}件をすべて削除しました。${backedUpCount > 0 ? `学習記録${backedUpCount}件をバックアップ用CSVとして自動ダウンロードしました。` : ""}${uploads.length > 0 ? `過去にアップロードしたCSV ${uploads.length}件もあわせてダウンロードしました。` : ""}`);
@@ -441,7 +455,7 @@ export default function TeacherUpload() {
     setConfirmBusy(true);
     setBatchBusyId(upload.id);
     try {
-      const qs = await fetchAllRows(() => supabase.from("questions").select("id").eq("upload_id", upload.id).eq("created_by", session.user.id));
+      const qs = await fetchAllRows(() => supabase.from("questions").select("id").eq("upload_id", upload.id).eq("page_id", page.pageId));
       const ids = (qs || []).map((q) => q.id);
 
       let backedUpCount = 0;
@@ -492,6 +506,14 @@ export default function TeacherUpload() {
           現在の問題数：{existingCount === null ? "…" : `${existingCount}件`}
         </div>
 
+        {pageLoading ? (
+          <div style={{ textAlign: "center", color: "var(--ink-soft)", padding: "40px 0" }}>読み込み中…</div>
+        ) : permissionDenied ? (
+          <div style={{ background: "var(--vermilion-tint)", color: "var(--vermilion-deep)", border: "1.5px solid var(--vermilion)", borderRadius: R, padding: 24, textAlign: "center" }}>
+            このページの問題・言語設定を管理する権限がありません。オーナーに権限の付与を依頼してください。
+          </div>
+        ) : (
+        <>
         <div style={{ background: "var(--surface)", border: "1.5px solid var(--ink)", borderRadius: R, boxShadow: SHADOW, padding: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 14, gap: 10 }}>
             <div style={{ fontSize: 13, color: "var(--ink-soft)" }}>ExcelでCSV UTF-8として保存したファイルを選ぶか、貼り付けてください</div>
@@ -587,6 +609,8 @@ export default function TeacherUpload() {
             })}
           </div>
         </div>
+        </>
+        )}
       </div>
     </div>
   );
