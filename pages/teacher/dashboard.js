@@ -5,7 +5,7 @@ import { fetchAllRows } from "../../lib/fetchAllRows";
 import { resolveActivePage, hasPermission } from "../../lib/currentPage";
 import {
   MODE_LABELS, QUIZ_MODES, FLASHCARD_MODES, ALL_MODES, LEVEL_KEYS,
-  REVIEW_COUNT_DEFINITION, buildStats, formatDuration, formatDateTime,
+  REVIEW_COUNT_DEFINITION, buildStats, buildSectionBreakdown, formatDuration, formatDateTime,
 } from "../../lib/statsHelpers";
 
 const R = "3px";
@@ -36,8 +36,60 @@ function toCSV(rows) {
   return lines.map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\r\n");
 }
 
-function DetailModal({ row, onClose }) {
+function sectionLabel(setNameMap, mode, level, setNo) {
+  const name = setNameMap ? setNameMap.get(`${mode}|${level}|${setNo}`) : null;
+  return name ? `${setNo}. ${name}` : `セット${setNo}`;
+}
+
+function SectionBreakdown({ mode, level, rows, setNameMap, onClose }) {
+  return (
+    <div style={{ background: "var(--bg)", border: "1.5px solid var(--indigo)", borderRadius: R, padding: 16, marginBottom: 20 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--indigo)" }}>{MODE_LABELS[mode]} － {level} のセクション別内訳</div>
+        <button onClick={onClose} style={{ background: "none", border: "1.5px solid var(--ink-soft)", borderRadius: R, padding: "3px 10px", cursor: "pointer", fontSize: 11 }}>閉じる</button>
+      </div>
+      {rows.length === 0 ? (
+        <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>データがありません。</div>
+      ) : (
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <thead>
+            <tr style={{ background: "var(--indigo)", color: "var(--surface)" }}>
+              <th style={th}>セクション</th>
+              <th style={th}>正答率</th>
+              <th style={th}>学習回数</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.setNo} style={{ borderTop: "1px solid var(--hairline)" }}>
+                <td style={td}>{sectionLabel(setNameMap, mode, level, r.setNo)}</td>
+                <td style={td}>{r.total ? `${pct(r.correct, r.total)}%（${r.total}問）` : "-"}</td>
+                <td style={td}>{r.attempts ? `${r.attempts}回` : "-"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
+function DetailModal({ row, progress, questionInfoMap, setNameMap, onClose }) {
+  const [expanded, setExpanded] = useState(null); // { mode, level }
+
+  useEffect(() => { setExpanded(null); }, [row]);
+
   if (!row) return null;
+
+  const sectionRows = expanded
+    ? buildSectionBreakdown({
+        progressRows: (progress || []).filter((p) => p.student_id === row.id),
+        mode: expanded.mode,
+        level: expanded.level,
+        questionInfoMap,
+      })
+    : null;
+
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(36,31,26,0.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--surface)", border: "1.5px solid var(--ink)", borderRadius: R, boxShadow: SHADOW, padding: 24, width: "80vw", maxWidth: 1400, maxHeight: "88vh", overflow: "auto" }}>
@@ -50,7 +102,12 @@ function DetailModal({ row, onClose }) {
           クラス：{row.className || "未設定"} ／ 総学習時間：{formatDuration(row.totalSeconds)} ／ 総学習回数：{row.totalReviews} ／ 最終学習：{row.lastAt ? formatDateTime(row.lastAt) : "-"}
         </div>
 
+        {expanded && (
+          <SectionBreakdown mode={expanded.mode} level={expanded.level} rows={sectionRows} setNameMap={setNameMap} onClose={() => setExpanded(null)} />
+        )}
+
         <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>正答率（③〜⑩・レベル別）</div>
+        <div style={{ fontSize: 11, color: "var(--ink-faint)", marginBottom: 8 }}>数字をクリックすると、問題セット（セクション）ごとの内訳が見られます。</div>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginBottom: 20 }}>
           <thead>
             <tr style={{ background: "var(--indigo)", color: "var(--surface)" }}>
@@ -64,7 +121,22 @@ function DetailModal({ row, onClose }) {
                 <td style={td}>{lv}</td>
                 {QUIZ_MODES.map((m) => {
                   const c = row.byModeLevel[m][lv];
-                  return <td key={m} style={td}>{c.total ? `${pct(c.correct, c.total)}%（${c.total}問）` : "-"}</td>;
+                  if (!c.total) return <td key={m} style={td}>-</td>;
+                  const isActive = expanded && expanded.mode === m && expanded.level === lv;
+                  return (
+                    <td key={m} style={td}>
+                      <button
+                        onClick={() => setExpanded(isActive ? null : { mode: m, level: lv })}
+                        style={{
+                          background: "none", border: "none", padding: 0, cursor: "pointer",
+                          color: isActive ? "var(--vermilion-deep)" : "var(--indigo)",
+                          textDecoration: "underline", fontSize: 12, fontWeight: isActive ? 700 : 400,
+                        }}
+                      >
+                        {pct(c.correct, c.total)}%（{c.total}問）
+                      </button>
+                    </td>
+                  );
                 })}
               </tr>
             ))}
@@ -112,6 +184,9 @@ export default function TeacherDashboard() {
   const [sortDir, setSortDir] = useState("asc");
   const [detailRow, setDetailRow] = useState(null);
   const [showPasswords, setShowPasswords] = useState(false);
+  const [allProgress, setAllProgress] = useState([]);
+  const [questionInfoMap, setQuestionInfoMap] = useState(new Map());
+  const [setNameMap, setSetNameMap] = useState(new Map());
 
   useEffect(() => {
     (async () => {
@@ -154,17 +229,22 @@ export default function TeacherDashboard() {
       if (!students || students.length === 0) { setRows([]); setLoading(false); return; }
 
       const studentIds = students.map((s) => s.id);
-      const [progress, sessions, questions] = await Promise.all([
+      const [progress, sessions, questions, setNames] = await Promise.all([
         fetchAllRows(() => supabase.from("progress").select("student_id, question_id, mode, correct, answered_at").in("student_id", studentIds)),
         fetchAllRows(() => supabase.from("study_sessions").select("student_id, mode, level, items, duration_seconds, started_at").in("student_id", studentIds)),
-        fetchAllRows(() => supabase.from("questions").select("id, level").eq("page_id", activePage.pageId)),
+        fetchAllRows(() => supabase.from("questions").select("id, level, set_no").eq("page_id", activePage.pageId)),
+        fetchAllRows(() => supabase.from("question_set_names").select("type, level, set_no, name").eq("page_id", activePage.pageId)),
       ]);
-      const questionLevelMap = new Map((questions || []).map((q) => [q.id, q.level]));
+      const questionInfoMap = new Map((questions || []).map((q) => [q.id, { level: q.level, setNo: q.set_no || 1 }]));
+      const setNameMap = new Map((setNames || []).map((s) => [`${s.type}|${s.level}|${s.set_no}`, s.name]));
+      setAllProgress(progress || []);
+      setQuestionInfoMap(questionInfoMap);
+      setSetNameMap(setNameMap);
 
       const summarized = students.map((s) => {
         const myProgress = (progress || []).filter((p) => p.student_id === s.id);
         const mySessions = (sessions || []).filter((sess) => sess.student_id === s.id);
-        const stats = buildStats({ progressRows: myProgress, sessionRows: mySessions, questionLevelMap });
+        const stats = buildStats({ progressRows: myProgress, sessionRows: mySessions, questionInfoMap });
 
         const modeAccuracy = {};
         QUIZ_MODES.forEach((m) => {
@@ -329,7 +409,13 @@ export default function TeacherDashboard() {
           </>
         )}
       </div>
-      <DetailModal row={detailRow} onClose={() => setDetailRow(null)} />
+      <DetailModal
+        row={detailRow}
+        progress={allProgress}
+        questionInfoMap={questionInfoMap}
+        setNameMap={setNameMap}
+        onClose={() => setDetailRow(null)}
+      />
     </div>
   );
 }
