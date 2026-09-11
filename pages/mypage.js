@@ -37,10 +37,10 @@ export default function MyPage() {
       const [progress, sessions, questions] = await Promise.all([
         fetchAllRows(() => supabase.from("progress").select("question_id, mode, correct, answered_at").eq("student_id", session.user.id)),
         fetchAllRows(() => supabase.from("study_sessions").select("mode, level, items, duration_seconds, started_at").eq("student_id", session.user.id)),
-        fetchAllRows(() => supabase.from("questions").select("id, level").eq("created_by", me.created_by)),
+        fetchAllRows(() => supabase.from("questions").select("id, level, set_no").eq("page_id", me.page_id)),
       ]);
-      const questionLevelMap = new Map((questions || []).map((q) => [q.id, q.level]));
-      setStats(buildStats({ progressRows: progress || [], sessionRows: sessions || [], questionLevelMap }));
+      const questionInfoMap = new Map((questions || []).map((q) => [q.id, { level: q.level, setNo: q.set_no || 1 }]));
+      setStats(buildStats({ progressRows: progress || [], sessionRows: sessions || [], questionInfoMap }));
       setLoading(false);
     })();
   }, [router]);
