@@ -23,7 +23,7 @@ function mapGrammar(rows) {
   return rows.map((r) => ({
     id: r.id, type: "grammar", level: r.level, setNo: r.set_no,
     blank: r.blank,
-    choices: [r.choice1, r.choice2, r.choice3, r.choice4],
+    choices: [r.choice1, r.choice2, r.choice3, r.choice4].filter(Boolean),
     answer: (r.answer || 1) - 1,
   }));
 }
@@ -37,7 +37,7 @@ function mapBlankChoice(rows, type) {
   return rows.map((r) => ({
     id: r.id, type, level: r.level, setNo: r.set_no,
     blank: r.blank,
-    choices: [r.choice1, r.choice2, r.choice3, r.choice4],
+    choices: [r.choice1, r.choice2, r.choice3, r.choice4].filter(Boolean),
     answer: (r.answer || 1) - 1,
   }));
 }
@@ -48,7 +48,7 @@ function mapReading(rows) {
     passage: r.passage,
     questions: (r.reading_questions || []).map((q) => ({
       question: q.question,
-      choices: [q.choice1, q.choice2, q.choice3, q.choice4],
+      choices: [q.choice1, q.choice2, q.choice3, q.choice4].filter(Boolean),
       answer: (q.answer || 1) - 1,
     })),
   }));
