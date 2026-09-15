@@ -28,6 +28,8 @@ const READING_Q_MAX = 5;
 const REORDER_CARD_MAX = 6;
 const REORDER_CARD_MIN = 3;
 const SET_NO_MAX = 50;
+const CHOICE_MAX = 4;
+const CHOICE_MIN = 2;
 const MEANING_SLOT_MAX = 10;
 // flashcardMeaning・vocab4は、ふりがなをword列に「漢字(かな)」で書く運用のため、reading列は任意
 const READING_OPTIONAL_TYPES = ["flashcardMeaning", "vocab4"];
@@ -71,16 +73,38 @@ async function deleteQuestionsByIds(ids) {
   }
 }
 
-// blank・choice1〜4・answerを使う4択形式のバリデーション（grammar / vocab4choice / kanji4choiceで共通）
+// choice1〜4を「choice1から順に埋まっている前提」で読み取り、有効な選択肢の配列（2〜4個）を返す。
+// 例：choice1・choice2だけ入力 → ["A","B"]（2択として成立）。
+// 例：choice1・choice3だけ入力（choice2が空欄）→ 歯抜けとみなしnullを返す（入力ミスの可能性が高いため）。
+// 2個未満（0個または1個）の場合もnullを返す（択一問題として成立しないため）。
+function parseChoiceList(rawChoices) {
+  const trimmed = rawChoices.map((c) => (c || "").trim());
+  const choices = [];
+  for (let i = 0; i < trimmed.length; i++) {
+    if (trimmed[i]) {
+      choices.push(trimmed[i]);
+    } else if (trimmed.slice(i + 1).some((c) => c)) {
+      return null; // 歯抜け
+    } else {
+      break;
+    }
+  }
+  if (choices.length < CHOICE_MIN) return null;
+  return choices;
+}
+
+// blank・choice1〜4（2〜4個でよい）・answerを使う択一形式のバリデーション（grammar / vocab4choice / kanji4choiceで共通）
 function parseBlankChoiceRow(row, type, level, setNo, idx, problems) {
-  const choices = [row.choice1, row.choice2, row.choice3, row.choice4].map((c) => (c || "").trim());
+  const choices = parseChoiceList([row.choice1, row.choice2, row.choice3, row.choice4]);
   const answerNum = parseInt(row.answer, 10);
   const label = TYPE_LABELS[type] || type;
-  if (!row.blank || choices.some((c) => !c) || !answerNum || answerNum < 1 || answerNum > 4) {
-    problems.push(`${idx + 2}行目: ${label}問題のデータが不完全です（blank・choice1〜4・answerを確認してください）`);
+  if (!row.blank || !choices || !answerNum || answerNum < 1 || answerNum > choices.length) {
+    problems.push(`${idx + 2}行目: ${label}問題のデータが不完全です（blank・choice1から順に${CHOICE_MIN}つ以上（最大${CHOICE_MAX}つ）・answerを確認してください）`);
     return null;
   }
-  return { type, level, set_no: setNo, blank: row.blank.trim(), choice1: choices[0], choice2: choices[1], choice3: choices[2], choice4: choices[3], answer: answerNum };
+  const result = { type, level, set_no: setNo, blank: row.blank.trim(), answer: answerNum };
+  for (let i = 0; i < CHOICE_MAX; i++) result[`choice${i + 1}`] = choices[i] || null;
+  return result;
 }
 
 // type: vocab（従来型・①②③④共通）/ flashcardReading（①専用）/ flashcardMeaning（②専用）/
@@ -124,13 +148,15 @@ function parseCSVText(text) {
       for (let q = 1; q <= READING_Q_MAX; q++) {
         const qText = (row[`q${q}`] || "").trim();
         if (!qText) continue;
-        const choices = [row[`q${q}_choice1`], row[`q${q}_choice2`], row[`q${q}_choice3`], row[`q${q}_choice4`]].map((c) => (c || "").trim());
+        const choices = parseChoiceList([row[`q${q}_choice1`], row[`q${q}_choice2`], row[`q${q}_choice3`], row[`q${q}_choice4`]]);
         const answerNum = parseInt(row[`q${q}_answer`], 10);
-        if (choices.some((c) => !c) || !answerNum || answerNum < 1 || answerNum > 4) {
-          problems.push(`${idx + 2}行目: q${q}の選択肢・正解番号が不完全なためq${q}をスキップしました`);
+        if (!choices || !answerNum || answerNum < 1 || answerNum > choices.length) {
+          problems.push(`${idx + 2}行目: q${q}の選択肢（choice1から順に${CHOICE_MIN}つ以上）・正解番号が不完全なためq${q}をスキップしました`);
           continue;
         }
-        readingQuestions.push({ question: qText, choice1: choices[0], choice2: choices[1], choice3: choices[2], choice4: choices[3], answer: answerNum });
+        const qResult = { question: qText, answer: answerNum };
+        for (let i = 0; i < CHOICE_MAX; i++) qResult[`choice${i + 1}`] = choices[i] || null;
+        readingQuestions.push(qResult);
       }
       if (readingQuestions.length === 0) { problems.push(`${idx + 2}行目: 読解問題には設問（q1〜q5）が少なくとも1つ必要です`); return; }
       rows.push({ type, level, set_no: setNo, passage: row.passage.trim(), reading_questions: readingQuestions });
@@ -564,10 +590,10 @@ export default function TeacherUpload() {
           <div><b>flashcardMeaning・vocab4のword列</b>：readingは使わず、word列に直接「食(た)べる」のようにふりがなをかっこ書きしてください（送り仮名のある単語も、漢字部分だけに正確にふりがなを振れます）。①フラッシュカード（読み方）・④漢字読み方入力・kakitoriでは、これまで通りreading列に読み方を入力してください</div>
           <div><b>vocab（従来のtype）</b>もそのまま使えます。vocabで登録した行は、これまで通り①②③④すべてに表示されます（今後は上記の専用typeを使うことをおすすめしますが、古いCSVを再アップロードしても問題ありません）</div>
           <div><b>kakitori行</b>は word 列に単漢字を1文字入れてください（例: 学）</div>
-          <div><b>vocab4choice・kanji4choice行</b>はgrammarと同じくblank（問題文）・choice1〜4・answer（1〜4）を使用します。blankに___（アンダースコア3つ）を入れると空欄埋め形式に、入れなければ普通の設問文として表示されます</div>
+          <div><b>vocab4choice・kanji4choice行</b>はgrammarと同じくblank（問題文）・choice1〜4（choice1から順に2つ以上埋めれば2択・3択でも可）・answer（選んだ選択肢の番号）を使用します。blankに___（アンダースコア3つ）を入れると空欄埋め形式に、入れなければ普通の設問文として表示されます</div>
           <div><b>___（アンダースコア3つ）</b>はgrammar・vocab4choice・kanji4choiceのblank、reorderのblankのどこでも、空欄として色付きの下線で表示されます</div>
           <div><b>ふりがな</b>：word（flashcardMeaning・vocab4のみ対象）や、example・blank・passage・q1〜q5・choice1〜4・card1〜card6などの自由記述欄では、「学校(がっこう)」のように漢字の直後に（半角・全角どちらでも）読み方をかっこ書きすると、学生画面では漢字の上に小さくふりがなとして表示されます</div>
-          <div><b>reading行</b>はpassage（文章）と、q1〜q5（設問・choice1〜4・answer）を使用します。設問は最大5つまで、1つ以上あれば取り込めます</div>
+          <div><b>reading行</b>はpassage（文章）と、q1〜q5（設問・choice1〜4は2つ以上埋めれば2択・3択でも可・answer）を使用します。設問は最大5つまで、1つ以上あれば取り込めます</div>
           <div><b>reorder行</b>はblank（___を含む例文）と、card1〜card6（正しい順番の単語、3〜6枚）を使用します</div>
         </div>
 
