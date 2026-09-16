@@ -115,6 +115,15 @@ const MODE_TITLES = {
   reorder: "⑩ 並べ替え問題",
 };
 
+// 画面遷移・学習記録（progress/study_sessions.mode）で使うmodeKeyと、
+// question_set_names/questionsのDB上のtype列との対応表。
+// ほとんどのモードはmodeKey＝typeで一致するが、⑤文法4択だけmodeKeyが"grammar4"
+// （DBのtypeは"grammar"）とズレているため、セット名（question_set_names）の
+// 検索キーを組み立てる時だけこの変換をかませる。
+const MODE_KEY_TO_QUESTION_TYPE = {
+  grammar4: "grammar",
+};
+
 const SAMPLE_VOCAB = [
   { type: "vocab", level: "N5", word: "学校", reading: "がっこう", meanings: { 1: "学ぶための場所", 2: "school" }, example: "毎日学校に行きます。" },
   { type: "vocab", level: "N5", word: "先生", reading: "せんせい", meanings: { 1: "教える人", 2: "teacher" }, example: "先生はやさしいです。" },
@@ -560,7 +569,8 @@ function SetSelect({ modeKey, level, fullList, setNameMap, onSelect, onExit }) {
       ) : (
         <div className="flex flex-col gap-2">
           {setNos.map((n) => {
-            const name = setNameMap ? setNameMap[`${modeKey}|${level}|${n}`] : null;
+            const questionType = MODE_KEY_TO_QUESTION_TYPE[modeKey] || modeKey;
+            const name = setNameMap ? setNameMap[`${questionType}|${level}|${n}`] : null;
             return (
               <button
                 key={n}
