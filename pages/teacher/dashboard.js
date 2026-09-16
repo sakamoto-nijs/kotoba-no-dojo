@@ -6,6 +6,7 @@ import { resolveActivePage, hasPermission } from "../../lib/currentPage";
 import {
   MODE_LABELS, QUIZ_MODES, FLASHCARD_MODES, ALL_MODES, LEVEL_KEYS,
   REVIEW_COUNT_DEFINITION, buildStats, buildSectionBreakdown, formatDuration, formatDateTime,
+  MODE_KEY_TO_QUESTION_TYPE,
 } from "../../lib/statsHelpers";
 
 const R = "3px";
@@ -37,7 +38,8 @@ function toCSV(rows) {
 }
 
 function sectionLabel(setNameMap, mode, level, setNo) {
-  const name = setNameMap ? setNameMap.get(`${mode}|${level}|${setNo}`) : null;
+  const questionType = MODE_KEY_TO_QUESTION_TYPE[mode] || mode;
+  const name = setNameMap ? setNameMap.get(`${questionType}|${level}|${setNo}`) : null;
   return name ? `${setNo}. ${name}` : `セット${setNo}`;
 }
 
