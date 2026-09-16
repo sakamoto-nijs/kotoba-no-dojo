@@ -8,6 +8,7 @@ import {
   ArrowLeft, RefreshCw, FileText, Star, Repeat, Languages, PenTool, UserCircle,
   BookOpenCheck, Hash, BookOpenText, GripVertical, Home,
 } from "lucide-react";
+import { MODE_KEY_TO_QUESTION_TYPE } from "../lib/statsHelpers";
 
 const FONT_IMPORT = `@import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;600;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Klee+One:wght@400;600&display=swap');`;
 
@@ -116,13 +117,9 @@ const MODE_TITLES = {
 };
 
 // 画面遷移・学習記録（progress/study_sessions.mode）で使うmodeKeyと、
-// question_set_names/questionsのDB上のtype列との対応表。
-// ほとんどのモードはmodeKey＝typeで一致するが、⑤文法4択だけmodeKeyが"grammar4"
-// （DBのtypeは"grammar"）とズレているため、セット名（question_set_names）の
-// 検索キーを組み立てる時だけこの変換をかませる。
-const MODE_KEY_TO_QUESTION_TYPE = {
-  grammar4: "grammar",
-};
+// question_set_names/questionsのDB上のtype列との対応表は
+// lib/statsHelpers.js の MODE_KEY_TO_QUESTION_TYPE を使用する
+// （教員ダッシュボード側と定義を共有し、ズレの再発を防ぐため）。
 
 const SAMPLE_VOCAB = [
   { type: "vocab", level: "N5", word: "学校", reading: "がっこう", meanings: { 1: "学ぶための場所", 2: "school" }, example: "毎日学校に行きます。" },
