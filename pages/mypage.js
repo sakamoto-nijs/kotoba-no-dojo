@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabaseClient";
 import { fetchAllRows } from "../lib/fetchAllRows";
 import {
   MODE_LABELS, QUIZ_MODES, FLASHCARD_MODES, LEVEL_KEYS,
-  REVIEW_COUNT_DEFINITION, buildStats, formatDuration, formatDateTime,
+  REVIEW_COUNT_DEFINITION, buildStats, buildSectionBreakdown, formatDuration, formatDateTime,
 } from "../lib/statsHelpers";
 
 const R = "3px";
@@ -13,12 +13,54 @@ const KLEE = "'Klee One', sans-serif";
 
 function pct(correct, total) { return total ? Math.round((correct / total) * 100) : null; }
 
+function sectionLabel(setNameMap, mode, level, setNo) {
+  const name = setNameMap ? setNameMap.get(`${mode}|${level}|${setNo}`) : null;
+  return name ? `${setNo}. ${name}` : `セット${setNo}`;
+}
+
+function SectionBreakdown({ mode, level, rows, setNameMap, onClose }) {
+  return (
+    <div style={{ background: "var(--bg)", border: "1.5px solid var(--indigo)", borderRadius: R, padding: 16, marginBottom: 20 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--indigo)" }}>{MODE_LABELS[mode]} － {level} のセクション別内訳</div>
+        <button onClick={onClose} style={{ background: "none", border: "1.5px solid var(--ink-soft)", borderRadius: R, padding: "3px 10px", cursor: "pointer", fontSize: 11 }}>閉じる</button>
+      </div>
+      {rows.length === 0 ? (
+        <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>データがありません。</div>
+      ) : (
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <thead>
+            <tr style={{ background: "var(--indigo)", color: "var(--surface)" }}>
+              <th style={th}>セクション</th>
+              <th style={th}>正答率</th>
+              <th style={th}>学習回数</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.setNo} style={{ borderTop: "1px solid var(--hairline)" }}>
+                <td style={td}>{sectionLabel(setNameMap, mode, level, r.setNo)}</td>
+                <td style={td}>{r.total ? `${pct(r.correct, r.total)}%（${r.total}問）` : "-"}</td>
+                <td style={td}>{r.attempts ? `${r.attempts}回` : "-"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
 export default function MyPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
   const [className, setClassName] = useState("");
   const [stats, setStats] = useState(null);
+  const [progressRows, setProgressRows] = useState([]);
+  const [questionInfoMap, setQuestionInfoMap] = useState(new Map());
+  const [setNameMap, setSetNameMap] = useState(new Map());
+  const [expanded, setExpanded] = useState(null); // { mode, level }
 
   useEffect(() => {
     (async () => {
@@ -34,12 +76,17 @@ export default function MyPage() {
         setClassName(cls?.name || "");
       }
 
-      const [progress, sessions, questions] = await Promise.all([
+      const [progress, sessions, questions, setNames] = await Promise.all([
         fetchAllRows(() => supabase.from("progress").select("question_id, mode, correct, answered_at").eq("student_id", session.user.id)),
         fetchAllRows(() => supabase.from("study_sessions").select("mode, level, items, duration_seconds, started_at").eq("student_id", session.user.id)),
         fetchAllRows(() => supabase.from("questions").select("id, level, set_no").eq("page_id", me.page_id)),
+        fetchAllRows(() => supabase.from("question_set_names").select("type, level, set_no, name").eq("page_id", me.page_id)),
       ]);
       const questionInfoMap = new Map((questions || []).map((q) => [q.id, { level: q.level, setNo: q.set_no || 1 }]));
+      const setNameMap = new Map((setNames || []).map((s) => [`${s.type}|${s.level}|${s.set_no}`, s.name]));
+      setProgressRows(progress || []);
+      setQuestionInfoMap(questionInfoMap);
+      setSetNameMap(setNameMap);
       setStats(buildStats({ progressRows: progress || [], sessionRows: sessions || [], questionInfoMap }));
       setLoading(false);
     })();
@@ -52,6 +99,10 @@ export default function MyPage() {
       </div>
     );
   }
+
+  const sectionRows = expanded
+    ? buildSectionBreakdown({ progressRows, mode: expanded.mode, level: expanded.level, questionInfoMap })
+    : null;
 
   return (
     <div style={{ minHeight: "100vh", padding: 24, fontFamily: KLEE }}>
@@ -76,14 +127,19 @@ export default function MyPage() {
           <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>学習状況（全体）</div>
           <div style={{ display: "flex", gap: 20, flexWrap: "wrap", fontSize: 13 }}>
             <div>総学習回数：<b>{stats.totalReviews}</b></div>
-            <div>正答率（③④⑤⑥）：<b>{pct(stats.totalCorrect, stats.totalAnswered) === null ? "-" : `${pct(stats.totalCorrect, stats.totalAnswered)}%`}</b></div>
+            <div>正答率（③〜⑩）：<b>{pct(stats.totalCorrect, stats.totalAnswered) === null ? "-" : `${pct(stats.totalCorrect, stats.totalAnswered)}%`}</b></div>
             <div>総学習時間：<b>{formatDuration(stats.totalStudySeconds)}</b></div>
             <div>最終学習：<b>{stats.lastAt ? formatDateTime(stats.lastAt) : "-"}</b></div>
           </div>
         </div>
 
+        {expanded && (
+          <SectionBreakdown mode={expanded.mode} level={expanded.level} rows={sectionRows} setNameMap={setNameMap} onClose={() => setExpanded(null)} />
+        )}
+
         <div style={{ background: "var(--surface)", border: "1.5px solid var(--ink)", borderRadius: R, boxShadow: SHADOW, padding: 20, marginBottom: 20, overflow: "auto" }}>
-          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>正答率（③④⑤⑥・レベル別）</div>
+          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>正答率（③〜⑩・レベル別）</div>
+          <div style={{ fontSize: 11, color: "var(--ink-faint)", marginBottom: 8 }}>数字をタップすると、問題セット（セクション）ごとの内訳が見られます。</div>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
             <thead>
               <tr style={{ background: "var(--indigo)", color: "var(--surface)" }}>
@@ -97,7 +153,22 @@ export default function MyPage() {
                   <td style={td}>{lv}</td>
                   {QUIZ_MODES.map((m) => {
                     const c = stats.byModeLevel[m][lv];
-                    return <td key={m} style={td}>{c.total ? `${pct(c.correct, c.total)}%（${c.total}問）` : "-"}</td>;
+                    if (!c.total) return <td key={m} style={td}>-</td>;
+                    const isActive = expanded && expanded.mode === m && expanded.level === lv;
+                    return (
+                      <td key={m} style={td}>
+                        <button
+                          onClick={() => setExpanded(isActive ? null : { mode: m, level: lv })}
+                          style={{
+                            background: "none", border: "none", padding: 0, cursor: "pointer",
+                            color: isActive ? "var(--vermilion-deep)" : "var(--indigo)",
+                            textDecoration: "underline", fontSize: 12, fontWeight: isActive ? 700 : 400, fontFamily: KLEE,
+                          }}
+                        >
+                          {pct(c.correct, c.total)}%（{c.total}問）
+                        </button>
+                      </td>
+                    );
                   })}
                 </tr>
               ))}
