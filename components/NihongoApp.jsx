@@ -1,6 +1,7 @@
 import React, { useState, useRef, useMemo, useEffect } from "react";
 import { useRouter } from "next/router";
 import Papa from "papaparse";
+import { playCorrectSound, playIncorrectSound } from "../lib/sounds";
 import * as tf from "@tensorflow/tfjs";
 import {
   BookOpen, ListChecks, Type, PenLine, Upload, Shuffle,
@@ -8,7 +9,6 @@ import {
   ArrowLeft, RefreshCw, FileText, Star, Repeat, Languages, PenTool, UserCircle,
   BookOpenCheck, Hash, BookOpenText, GripVertical, Home,
 } from "lucide-react";
-import { MODE_KEY_TO_QUESTION_TYPE } from "../lib/statsHelpers";
 
 const FONT_IMPORT = `@import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;600;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Klee+One:wght@400;600&display=swap');`;
 
@@ -115,11 +115,6 @@ const MODE_TITLES = {
   reading: "⑨ 読解問題",
   reorder: "⑩ 並べ替え問題",
 };
-
-// 画面遷移・学習記録（progress/study_sessions.mode）で使うmodeKeyと、
-// question_set_names/questionsのDB上のtype列との対応表は
-// lib/statsHelpers.js の MODE_KEY_TO_QUESTION_TYPE を使用する
-// （教員ダッシュボード側と定義を共有し、ズレの再発を防ぐため）。
 
 const SAMPLE_VOCAB = [
   { type: "vocab", level: "N5", word: "学校", reading: "がっこう", meanings: { 1: "学ぶための場所", 2: "school" }, example: "毎日学校に行きます。" },
@@ -566,8 +561,7 @@ function SetSelect({ modeKey, level, fullList, setNameMap, onSelect, onExit }) {
       ) : (
         <div className="flex flex-col gap-2">
           {setNos.map((n) => {
-            const questionType = MODE_KEY_TO_QUESTION_TYPE[modeKey] || modeKey;
-            const name = setNameMap ? setNameMap[`${questionType}|${level}|${n}`] : null;
+            const name = setNameMap ? setNameMap[`${modeKey}|${level}|${n}`] : null;
             return (
               <button
                 key={n}
@@ -681,7 +675,7 @@ function Vocab4Mode({ vocab, level, langSlot, favVocab, onToggleFav, onAnswer, o
     if (selected) return;
     setSelected(opt.word);
     const correct = opt.word === current.answer;
-    if (correct) setScore((s) => s + 1);
+    if (correct) { setScore((s) => s + 1); playCorrectSound(); } else { playIncorrectSound(); }
     if (onAnswer) onAnswer(current.id, "vocab4", correct);
   };
   const next = () => { setSelected(null); setIdx((i) => i + 1); };
@@ -756,7 +750,7 @@ function KanjiInputMode({ vocab, level, favVocab, onToggleFav, onAnswer, onExit 
     const ok = input.trim() === current.reading.trim();
     setCorrect(ok);
     setChecked(true);
-    if (ok) setScore((s) => s + 1);
+    if (ok) { setScore((s) => s + 1); playCorrectSound(); } else { playIncorrectSound(); }
     if (onAnswer) onAnswer(current.id || current.word, "kanji", ok);
   };
   const next = () => {
@@ -843,7 +837,7 @@ function GrammarMode({ grammar, level, favGrammar, onToggleFav, onAnswer, onExit
     if (selected !== null) return;
     setSelected(i);
     const correct = i === current.answer;
-    if (correct) setScore((s) => s + 1);
+    if (correct) { setScore((s) => s + 1); playCorrectSound(); } else { playIncorrectSound(); }
     if (onAnswer) onAnswer(current.id || current.blank, "grammar4", correct);
   };
   const next = () => { setSelected(null); setIdx((i) => i + 1); };
@@ -957,7 +951,7 @@ function KakitoriMode({ list, level, langSlot, favSet, onToggleFav, onAnswer, on
     if (picked) return;
     setPicked(char);
     const correct = char === current.char;
-    if (correct) setScore((s) => s + 1);
+    if (correct) { setScore((s) => s + 1); playCorrectSound(); } else { playIncorrectSound(); }
     if (onAnswer) onAnswer(current.id || current.char, "kakitori", correct);
   };
   const skip = () => {
@@ -1068,7 +1062,7 @@ function BlankChoiceQuizMode({ modeKey, list, level, favSet, onToggleFav, onAnsw
     if (selected !== null) return;
     setSelected(i);
     const correct = i === current.answer;
-    if (correct) setScore((s) => s + 1);
+    if (correct) { setScore((s) => s + 1); playCorrectSound(); } else { playIncorrectSound(); }
     if (onAnswer) onAnswer(current.id || current.blank, modeKey, correct);
   };
   const next = () => { setSelected(null); setIdx((i) => i + 1); };
@@ -1166,7 +1160,7 @@ function ReadingMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
     setAnswered((prev) => ({ ...prev, [subIdx]: choiceIdx }));
     const q = current.questions[subIdx];
     const correct = choiceIdx === q.answer;
-    if (correct) setScore((s) => s + 1);
+    if (correct) { setScore((s) => s + 1); playCorrectSound(); } else { playIncorrectSound(); }
     if (onAnswer) onAnswer(current.id || `${idx}`, "reading", correct);
   };
   const allAnswered = current.questions.every((_, i) => answered[i] !== undefined);
@@ -1281,7 +1275,7 @@ function ReorderMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
   const check = () => {
     if (!allFilled || checked) return;
     setChecked(true);
-    if (isAllCorrect) setScore((s) => s + 1);
+    if (isAllCorrect) { setScore((s) => s + 1); playCorrectSound(); } else { playIncorrectSound(); }
     if (onAnswer) onAnswer(current.id || current.blank, "reorder", isAllCorrect);
   };
   const next = () => setIdx((i) => i + 1);
