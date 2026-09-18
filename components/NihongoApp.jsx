@@ -1841,7 +1841,7 @@ export default function App({
             <div style={{ fontFamily: SERIF, fontSize: 34, color: COLORS.ink, fontWeight: 800, letterSpacing: "0.03em" }}>
               ことば<span style={{ color: COLORS.vermilion }}>の道場</span>
             </div>
-            <div style={{ color: COLORS.inkSoft, fontSize: 13, marginTop: 8, fontFamily: SANS, letterSpacing: "0.04em" }}>日本語学習者向け 単語・文法トレーニング（試作版）</div>
+            <div style={{ color: COLORS.inkSoft, fontSize: 13, marginTop: 8, fontFamily: SANS, letterSpacing: "0.04em" }}>日本語学習者向け 単語・文法トレーニング</div>
             <div style={{ color: COLORS.inkFaint, fontSize: 12, marginTop: 10, fontFamily: SANS }}>文法 {grammarList.length}件（N5〜N1）</div>
 
             <div className="flex items-center justify-center gap-2 mt-4 flex-wrap">
