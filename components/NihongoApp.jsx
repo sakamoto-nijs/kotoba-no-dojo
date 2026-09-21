@@ -2,6 +2,7 @@ import React, { useState, useRef, useMemo, useEffect } from "react";
 import { useRouter } from "next/router";
 import Papa from "papaparse";
 import { playCorrectSound, playIncorrectSound } from "../lib/sounds";
+import { buildCreatureSVG } from "../lib/kotodama";
 import * as tf from "@tensorflow/tfjs";
 import {
   BookOpen, ListChecks, Type, PenLine, Upload, Shuffle,
@@ -20,6 +21,14 @@ const DESKTOP_SCALE_CSS = `
   .kotoba-dojo-root { zoom: 1.25; }
 }
 `;
+
+// 問題ごとの回答時間（秒）を計測する小さなフック。depが変わるたび計測をリセットする
+// （＝新しい問題が表示された時刻を起点にする）。ことだまのXP計算（時間ボーナス）で使う。
+function useAnswerTimer(dep) {
+  const startRef = useRef(Date.now());
+  useEffect(() => { startRef.current = Date.now(); }, [dep]);
+  return () => Math.max(0, Math.round((Date.now() - startRef.current) / 1000));
+}
 
 const COLORS = {
   bg: "#F2ECDA",
@@ -670,13 +679,14 @@ function Vocab4Mode({ vocab, level, langSlot, favVocab, onToggleFav, onAnswer, o
   const finished = idx >= questions.length;
   const current = !finished ? questions[idx] : null;
   const isFav = current ? favVocab.has(current.answer) : false;
+  const getElapsed = useAnswerTimer(idx);
 
   const choose = (opt) => {
     if (selected) return;
     setSelected(opt.word);
     const correct = opt.word === current.answer;
     if (correct) { setScore((s) => s + 1); playCorrectSound(); } else { playIncorrectSound(); }
-    if (onAnswer) onAnswer(current.id, "vocab4", correct);
+    if (onAnswer) onAnswer(current.id, "vocab4", correct, getElapsed());
   };
   const next = () => { setSelected(null); setIdx((i) => i + 1); };
   const restart = () => { setIdx(0); setSelected(null); setScore(0); };
@@ -744,6 +754,7 @@ function KanjiInputMode({ vocab, level, favVocab, onToggleFav, onAnswer, onExit 
   const current = !finished ? questions[idx] : null;
   const isFav = current ? favVocab.has(current.word) : false;
   const inputRef = useRef(null);
+  const getElapsed = useAnswerTimer(idx);
 
   const check = () => {
     if (checked) return;
@@ -751,7 +762,7 @@ function KanjiInputMode({ vocab, level, favVocab, onToggleFav, onAnswer, onExit 
     setCorrect(ok);
     setChecked(true);
     if (ok) { setScore((s) => s + 1); playCorrectSound(); } else { playIncorrectSound(); }
-    if (onAnswer) onAnswer(current.id || current.word, "kanji", ok);
+    if (onAnswer) onAnswer(current.id || current.word, "kanji", ok, getElapsed());
   };
   const next = () => {
     setInput("");
@@ -832,13 +843,14 @@ function GrammarMode({ grammar, level, favGrammar, onToggleFav, onAnswer, onExit
   const finished = idx >= questions.length;
   const current = !finished ? questions[idx] : null;
   const isFav = current ? favGrammar.has(current.blank) : false;
+  const getElapsed = useAnswerTimer(idx);
 
   const choose = (i) => {
     if (selected !== null) return;
     setSelected(i);
     const correct = i === current.answer;
     if (correct) { setScore((s) => s + 1); playCorrectSound(); } else { playIncorrectSound(); }
-    if (onAnswer) onAnswer(current.id || current.blank, "grammar4", correct);
+    if (onAnswer) onAnswer(current.id || current.blank, "grammar4", correct, getElapsed());
   };
   const next = () => { setSelected(null); setIdx((i) => i + 1); };
   const restart = () => { setIdx(0); setSelected(null); setScore(0); };
@@ -911,6 +923,7 @@ function KakitoriMode({ list, level, langSlot, favSet, onToggleFav, onAnswer, on
   const finished = idx >= questions.length;
   const current = !finished ? questions[idx] : null;
   const isFav = current ? favSet.has(current.char) : false;
+  const getElapsed = useAnswerTimer(idx);
 
   useEffect(() => {
     loadDaKanjiModel(setStatus).catch(() => setStatus("モデルの読み込みに失敗しました（通信環境をご確認ください）。"));
@@ -952,12 +965,12 @@ function KakitoriMode({ list, level, langSlot, favSet, onToggleFav, onAnswer, on
     setPicked(char);
     const correct = char === current.char;
     if (correct) { setScore((s) => s + 1); playCorrectSound(); } else { playIncorrectSound(); }
-    if (onAnswer) onAnswer(current.id || current.char, "kakitori", correct);
+    if (onAnswer) onAnswer(current.id || current.char, "kakitori", correct, getElapsed());
   };
   const skip = () => {
     if (picked) return;
     setPicked("__SKIP__");
-    if (onAnswer) onAnswer(current.id || current.char, "kakitori", false);
+    if (onAnswer) onAnswer(current.id || current.char, "kakitori", false, getElapsed());
   };
   const next = () => setIdx((i) => i + 1);
   const doShuffle = () => { setQuestions(shuffle(list)); setIdx(0); setScore(0); };
@@ -1057,13 +1070,14 @@ function BlankChoiceQuizMode({ modeKey, list, level, favSet, onToggleFav, onAnsw
   const finished = idx >= questions.length;
   const current = !finished ? questions[idx] : null;
   const isFav = current ? favSet.has(current.id || current.blank) : false;
+  const getElapsed = useAnswerTimer(idx);
 
   const choose = (i) => {
     if (selected !== null) return;
     setSelected(i);
     const correct = i === current.answer;
     if (correct) { setScore((s) => s + 1); playCorrectSound(); } else { playIncorrectSound(); }
-    if (onAnswer) onAnswer(current.id || current.blank, modeKey, correct);
+    if (onAnswer) onAnswer(current.id || current.blank, modeKey, correct, getElapsed());
   };
   const next = () => { setSelected(null); setIdx((i) => i + 1); };
   const restart = () => { setIdx(0); setSelected(null); setScore(0); };
@@ -1140,6 +1154,7 @@ function ReadingMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
   const finished = idx >= passages.length;
   const current = !finished ? passages[idx] : null;
   const isFav = current ? favSet.has(current.id || current.passage) : false;
+  const getElapsed = useAnswerTimer(idx);
 
   useEffect(() => {
     setAnswered({});
@@ -1161,7 +1176,7 @@ function ReadingMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
     const q = current.questions[subIdx];
     const correct = choiceIdx === q.answer;
     if (correct) { setScore((s) => s + 1); playCorrectSound(); } else { playIncorrectSound(); }
-    if (onAnswer) onAnswer(current.id || `${idx}`, "reading", correct);
+    if (onAnswer) onAnswer(current.id || `${idx}`, "reading", correct, getElapsed());
   };
   const allAnswered = current.questions.every((_, i) => answered[i] !== undefined);
   const next = () => setIdx((i) => i + 1);
@@ -1227,6 +1242,7 @@ function ReorderMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
   const finished = idx >= questions.length;
   const current = !finished ? questions[idx] : null;
   const isFav = current ? favSet.has(current.id || current.blank) : false;
+  const getElapsed = useAnswerTimer(idx);
 
   useEffect(() => {
     if (finished) return;
@@ -1276,7 +1292,7 @@ function ReorderMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
     if (!allFilled || checked) return;
     setChecked(true);
     if (isAllCorrect) { setScore((s) => s + 1); playCorrectSound(); } else { playIncorrectSound(); }
-    if (onAnswer) onAnswer(current.id || current.blank, "reorder", isAllCorrect);
+    if (onAnswer) onAnswer(current.id || current.blank, "reorder", isAllCorrect, getElapsed());
   };
   const next = () => setIdx((i) => i + 1);
   const doShuffle = () => { setQuestions(shuffle(list)); setIdx(0); setScore(0); };
@@ -1465,6 +1481,8 @@ export default function App({
   onRegisterFlushSession,
   onLogout,
   myPageHref,
+  kotodamaHref,
+  kotodamaStage = 1,
   allowLocalImport = true,
 } = {}) {
   const router = useRouter();
@@ -1837,6 +1855,20 @@ export default function App({
 
       {screen === "home" && (
         <div className="max-w-2xl mx-auto">
+          {kotodamaHref && (
+            <button
+              onClick={async () => { await flushSessionRef.current(); router.push(kotodamaHref); }}
+              className="flex items-center justify-center gap-3 w-full mb-5 px-4 py-3"
+              style={{ background: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW, cursor: "pointer" }}
+            >
+              <div style={{ width: 56, height: 56, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                dangerouslySetInnerHTML={{ __html: buildCreatureSVG(kotodamaStage).replace('width="190" height="210"', 'width="56" height="56"') }} />
+              <div style={{ textAlign: "left" }}>
+                <div style={{ fontFamily: KLEE, fontSize: 15, fontWeight: 700, color: COLORS.ink }}>ことだま育成</div>
+                <div style={{ fontSize: 12, color: COLORS.inkSoft, fontFamily: SANS }}>ここまでの学習でどれだけ育ったか見てみましょう</div>
+              </div>
+            </button>
+          )}
           <div className="text-center mb-8" style={{ borderBottom: `2px solid ${COLORS.ink}`, paddingBottom: 20 }}>
             <div style={{ fontFamily: SERIF, fontSize: 34, color: COLORS.ink, fontWeight: 800, letterSpacing: "0.03em" }}>
               ことば<span style={{ color: COLORS.vermilion }}>の道場</span>
