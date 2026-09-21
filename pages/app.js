@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../lib/supabaseClient";
 import { fetchAllRows } from "../lib/fetchAllRows";
+import { computeKotodamaStats } from "../lib/kotodama";
 import NihongoApp from "../components/NihongoApp";
 
 // meaning_1〜meaning_10（教員が「言語設定」で決めた最大10言語ぶんの意味）を { スロット番号: 文字列 } の形にまとめる
@@ -83,6 +84,7 @@ export default function AppPage() {
   const [initialReorder, setInitialReorder] = useState([]);
   const [setNameMap, setSetNameMap] = useState({});
   const [languageOptions, setLanguageOptions] = useState([]);
+  const [kotodamaStage, setKotodamaStage] = useState(1);
 
   useEffect(() => {
     (async () => {
@@ -120,6 +122,13 @@ export default function AppPage() {
       );
       setLanguageOptions((langRows || []).map((r) => ({ slot: r.slot, name: r.language_name })));
 
+      // ホーム画面上部の「ことだま」ミニ表示用（詳細はpages/kotodama.jsで計算するものと同じロジック）
+      const [progressForKotodama, sessionsForKotodama] = await Promise.all([
+        fetchAllRows(() => supabase.from("progress").select("mode, correct, elapsed_seconds").eq("student_id", session.user.id)),
+        fetchAllRows(() => supabase.from("study_sessions").select("mode, items, duration_seconds").eq("student_id", session.user.id)),
+      ]);
+      setKotodamaStage(computeKotodamaStats({ progressRows: progressForKotodama || [], sessionRows: sessionsForKotodama || [] }).stage);
+
       setReady(true);
     })();
   }, [router]);
@@ -133,7 +142,7 @@ export default function AppPage() {
     return () => listener?.subscription?.unsubscribe();
   }, []);
 
-  const handleAnswer = async (questionId, mode, correct) => {
+  const handleAnswer = async (questionId, mode, correct, elapsedSeconds) => {
     if (!studentId || !questionId) return;
     // questionIdがSupabase由来のUUIDでない場合（サンプルデータ使用時など）は記録しない
     const looksLikeUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(String(questionId));
@@ -144,6 +153,7 @@ export default function AppPage() {
         question_id: questionId,
         mode,
         correct,
+        elapsed_seconds: Number.isFinite(elapsedSeconds) ? elapsedSeconds : null,
       });
       if (error) console.error("progressの記録に失敗しました:", error);
     } catch (e) {
@@ -211,6 +221,8 @@ export default function AppPage() {
       onRegisterFlushSession={(fn) => { flushSessionRef.current = fn || (() => Promise.resolve()); }}
       onLogout={handleLogout}
       myPageHref="/mypage"
+      kotodamaHref="/kotodama"
+      kotodamaStage={kotodamaStage}
       allowLocalImport={false}
     />
   );
