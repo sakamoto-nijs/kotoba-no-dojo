@@ -1722,16 +1722,16 @@ export default function App({
   };
 
   const modes = [
-    { key: "flashcardReading", titleJa: "① フラッシュカード（読(よ)み方(かた)）", titleEn: "Flashcards (Reading)", desc: "単語を見て読み方を覚える", icon: BookOpen, disabled: flashcardReadingList.length === 0 },
-    { key: "flashcardMeaning", titleJa: "② フラッシュカード（意味(いみ)）", titleEn: "Flashcards (Meaning)", desc: "単語を見て意味を覚える", icon: Languages, disabled: flashcardMeaningList.length === 0 },
-    { key: "vocab4", titleJa: "③ 単語(たんご)4択(よんたく)問題(もんだい)", titleEn: "Word Quiz (4 Choices)", desc: "意味を見て単語を選ぶ", icon: ListChecks, disabled: vocab4List.length < 4 },
-    { key: "kanji", titleJa: "④ 漢字(かんじ)読(よ)み方(かた)入力(にゅうりょく)", titleEn: "Kanji Reading (Type the Answer)", desc: "ひらがなで読み方を入力", icon: Type, disabled: kanjiList.length === 0 },
-    { key: "grammar4", titleJa: "⑤ 文法(ぶんぽう)4択問題", titleEn: "Grammar Quiz (4 Choices)", desc: "括弧に入る言葉を4択で選ぶ", icon: PenLine, disabled: grammarList.length === 0 },
-    { key: "kakitori", titleJa: "⑥ 漢字書(か)き取(と)り", titleEn: "Kanji Writing (Handwritten)", desc: "手書きで漢字を書いて答える", icon: PenTool, disabled: kakitoriList.length === 0 },
-    { key: "vocab4choice", titleJa: "⑦ 語彙(ごい)4択問題", titleEn: "Vocabulary Quiz (4 Choices)", desc: "語彙の問題を4択で選ぶ", icon: BookOpenCheck, disabled: vocab4ChoiceList.length === 0 },
-    { key: "kanji4choice", titleJa: "⑧ 漢字4択問題", titleEn: "Kanji Quiz (4 Choices)", desc: "漢字の問題を4択で選ぶ", icon: Hash, disabled: kanji4ChoiceList.length === 0 },
-    { key: "reading", titleJa: "⑨ 読解(どっかい)問題", titleEn: "Reading Comprehension", desc: "文章を読んで設問に答える", icon: BookOpenText, disabled: readingList.length === 0 },
-    { key: "reorder", titleJa: "⑩ 並(なら)べ替(か)え問題", titleEn: "Word Order (Reorder)", desc: "カードを正しい順番に並べ替える", icon: GripVertical, disabled: reorderList.length === 0 },
+    { key: "flashcardReading", titleJa: "①フラッシュカード読(よ)み方(かた)", titleEn: "Flashcards (Reading)", desc: "単語を見て読み方を覚える", icon: BookOpen, disabled: flashcardReadingList.length === 0 },
+    { key: "flashcardMeaning", titleJa: "②フラッシュカード意味(いみ)", titleEn: "Flashcards (Meaning)", desc: "単語を見て意味を覚える", icon: Languages, disabled: flashcardMeaningList.length === 0 },
+    { key: "vocab4", titleJa: "③単語(たんご)4択(たく)問題(もんだい)", titleEn: "Word Quiz (4 Choices)", desc: "意味を見て単語を選ぶ", icon: ListChecks, disabled: vocab4List.length < 4 },
+    { key: "kanji", titleJa: "④漢字(かんじ)読(よ)み方(かた)入力(にゅうりょく)", titleEn: "Kanji Reading (Type the Answer)", desc: "ひらがなで読み方を入力", icon: Type, disabled: kanjiList.length === 0 },
+    { key: "grammar4", titleJa: "⑤文法(ぶんぽう)4択(たく)問題(もんだい)", titleEn: "Grammar Quiz (4 Choices)", desc: "括弧に入る言葉を4択で選ぶ", icon: PenLine, disabled: grammarList.length === 0 },
+    { key: "kakitori", titleJa: "⑥漢字(かんじ)書(か)き取(と)り", titleEn: "Kanji Writing (Handwritten)", desc: "手書きで漢字を書いて答える", icon: PenTool, disabled: kakitoriList.length === 0 },
+    { key: "vocab4choice", titleJa: "⑦語彙(ごい)4択(たく)問題(もんだい)", titleEn: "Vocabulary Quiz (4 Choices)", desc: "語彙の問題を4択で選ぶ", icon: BookOpenCheck, disabled: vocab4ChoiceList.length === 0 },
+    { key: "kanji4choice", titleJa: "⑧漢字(かんじ)4択(たく)問題(もんだい)", titleEn: "Kanji Quiz (4 Choices)", desc: "漢字の問題を4択で選ぶ", icon: Hash, disabled: kanji4ChoiceList.length === 0 },
+    { key: "reading", titleJa: "⑨読解(どっかい)問題(もんだい)", titleEn: "Reading Comprehension", desc: "文章を読んで設問に答える", icon: BookOpenText, disabled: readingList.length === 0 },
+    { key: "reorder", titleJa: "⑩並(なら)べ替(か)え問題(もんだい)", titleEn: "Word Order (Reorder)", desc: "カードを正しい順番に並べ替える", icon: GripVertical, disabled: reorderList.length === 0 },
   ];
 
   // レベル選択画面（LevelSelect）に渡すデータソースの定義。モードごとに参照するリスト・お気に入り集合・IDの取り方・必要最低問題数が異なる
