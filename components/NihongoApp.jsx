@@ -579,7 +579,7 @@ function SetSelect({ modeKey, level, fullList, setNameMap, onSelect, onExit }) {
                 style={{ background: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW, cursor: "pointer" }}
               >
                 <div style={{ fontFamily: KLEE, fontSize: 15, fontWeight: 600, color: COLORS.ink }}>
-                  {n}{name ? `. ${name}` : ""}
+                  {n}{name ? <>. {renderAnnotatedText(name)}</> : ""}
                 </div>
                 <div className="flex items-center gap-1" style={{ fontFamily: KLEE, fontSize: 12, color: COLORS.inkFaint }}>
                   {counts[n]}問 <ChevronRight size={15} />
