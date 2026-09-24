@@ -112,6 +112,75 @@ function ResetPasswordModal({ student, onClose, session, onDone }) {
   );
 }
 
+function EditStudentModal({ student, classes, onClose, session, onDone }) {
+  const [studentCode, setStudentCode] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [classId, setClassId] = useState("");
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  // 編集対象が変わるたびに、フォームの中身をその学生の現在の値で初期化する
+  useEffect(() => {
+    if (!student) return;
+    setStudentCode(student.student_code || "");
+    setDisplayName(student.display_name || "");
+    setClassId(student.class_id || "");
+    setError(null);
+  }, [student]);
+
+  if (!student) return null;
+
+  const submit = async () => {
+    if (!studentCode.trim() || !displayName.trim()) { setError("学生ID・氏名は必須です。"); return; }
+    setError(null); setLoading(true);
+    const res = await fetch("/api/teacher/update-student", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ studentId: student.id, studentCode: studentCode.trim(), displayName: displayName.trim(), classId: classId || null }),
+    });
+    const json = await res.json();
+    setLoading(false);
+    if (!res.ok) { setError(json.error || "更新に失敗しました。"); return; }
+    onDone();
+    onClose();
+  };
+
+  const codeChanged = studentCode.trim().toLowerCase() !== (student.student_code || "").toLowerCase();
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(36,31,26,0.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--surface)", border: "1.5px solid var(--ink)", borderRadius: R, boxShadow: SHADOW, padding: 24, maxWidth: 360, width: "100%" }}>
+        <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>学生情報を編集</div>
+
+        <label style={lbl}>学生ID（ログインID）</label>
+        <input value={studentCode} onChange={(e) => setStudentCode(e.target.value)} style={inp} />
+        {codeChanged && (
+          <div style={{ fontSize: 11, color: "var(--vermilion-deep)", marginTop: 4 }}>
+            学生IDを変更すると、この学生は次回から新しいIDでログインする必要があります。
+          </div>
+        )}
+
+        <label style={lbl}>氏名</label>
+        <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} style={inp} />
+
+        <label style={lbl}>クラス</label>
+        <select value={classId} onChange={(e) => setClassId(e.target.value)} style={inp}>
+          <option value="">クラス未設定</option>
+          {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+
+        {error && <div style={{ background: "var(--vermilion-tint)", color: "var(--vermilion-deep)", border: "1.5px solid var(--vermilion)", borderRadius: R, padding: "8px 12px", fontSize: 12, marginTop: 14 }}>{error}</div>}
+        <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: "10px", border: "1.5px solid var(--ink)", background: "transparent", borderRadius: R, cursor: "pointer", fontSize: 13 }}>キャンセル</button>
+          <button onClick={submit} disabled={loading} style={{ flex: 1, padding: "10px", border: "1.5px solid var(--ink)", background: "var(--ink)", color: "var(--surface)", borderRadius: R, cursor: "pointer", fontSize: 13 }}>
+            {loading ? "保存中…" : "保存する"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function TeacherStudents() {
   const router = useRouter();
   const [session, setSession] = useState(null);
@@ -126,6 +195,7 @@ export default function TeacherStudents() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [resetTarget, setResetTarget] = useState(null);
+  const [editTarget, setEditTarget] = useState(null);
   const [showPasswords, setShowPasswords] = useState(false);
   const [confirmInfo, setConfirmInfo] = useState(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
@@ -388,6 +458,9 @@ export default function TeacherStudents() {
                 </div>
               </div>
               <div style={{ display: "flex", gap: 6 }}>
+                <button onClick={() => setEditTarget(s)} style={{ fontSize: 11, padding: "4px 10px", border: "1.5px solid var(--indigo)", color: "var(--indigo)", background: "transparent", borderRadius: R, cursor: "pointer" }}>
+                  編集
+                </button>
                 <button onClick={() => setResetTarget(s)} style={{ fontSize: 11, padding: "4px 10px", border: "1.5px solid var(--ink)", background: "transparent", borderRadius: R, cursor: "pointer" }}>
                   パスワード再設定
                 </button>
@@ -402,6 +475,13 @@ export default function TeacherStudents() {
         )}
       </div>
 
+      <EditStudentModal
+        student={editTarget}
+        classes={classes}
+        session={session}
+        onClose={() => setEditTarget(null)}
+        onDone={() => loadStudents(page.pageId)}
+      />
       <ResetPasswordModal
         student={resetTarget}
         session={session}
