@@ -22,6 +22,14 @@ const CATEGORY_OPTIONS = [
 // ①②③④は、従来のtype='vocab'も学生画面では合算して表示されるため、件数のカウントもそれに合わせる
 const LEGACY_FALLBACK_TYPES = ["flashcardReading", "flashcardMeaning", "vocab4", "kanji"];
 
+// ①②③④⑥⑦⑧⑨⑩は、questionsテーブルの実際のtype値と学生画面のmodeKeyが一致しているが、
+// ⑤文法4択問題だけは questions.type が "grammar"、学生画面のmodeKeyが "grammar4" で食い違っている
+// （文法4択問題は今のところquestions.type="grammar"の1種類しか存在しないため）。
+// question_set_names（問題セット名）は学生画面のmodeKeyをキーに参照されるので、保存・読み込み時はこちらに変換する。
+// 件数カウント（questionsテーブルへの問い合わせ）は実際のtypeのままでよいので変換しない。
+const NAME_TYPE_BY_CATEGORY = { grammar: "grammar4" };
+const nameType = (cat) => NAME_TYPE_BY_CATEGORY[cat] || cat;
+
 export default function QuestionSets() {
   const router = useRouter();
   const [session, setSession] = useState(null);
@@ -76,7 +84,7 @@ export default function QuestionSets() {
 
       const nameRows = await fetchAllRows(() =>
         supabase.from("question_set_names").select("set_no, name")
-          .eq("page_id", page.pageId).eq("type", category).eq("level", level)
+          .eq("page_id", page.pageId).eq("type", nameType(category)).eq("level", level)
       );
       const n = {};
       (nameRows || []).forEach((r) => { n[r.set_no] = r.name; });
@@ -107,7 +115,7 @@ export default function QuestionSets() {
         const original = (originalNames[n] || "").trim();
         if (value === original) continue;
         if (value) {
-          toUpsert.push({ teacher_id: session.user.id, page_id: page.pageId, type: category, level, set_no: n, name: value, updated_at: new Date().toISOString() });
+          toUpsert.push({ teacher_id: session.user.id, page_id: page.pageId, type: nameType(category), level, set_no: n, name: value, updated_at: new Date().toISOString() });
         } else if (original) {
           toDeleteSetNos.push(n);
         }
@@ -118,7 +126,7 @@ export default function QuestionSets() {
       }
       if (toDeleteSetNos.length) {
         const { error: delErr } = await supabase.from("question_set_names").delete()
-          .eq("page_id", page.pageId).eq("type", category).eq("level", level).in("set_no", toDeleteSetNos);
+          .eq("page_id", page.pageId).eq("type", nameType(category)).eq("level", level).in("set_no", toDeleteSetNos);
         if (delErr) throw delErr;
       }
       setOriginalNames(names);
