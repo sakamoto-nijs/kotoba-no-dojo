@@ -46,8 +46,8 @@ const COLORS = {
   hairline: "#D9CFB4",
   star: "#F4C430",
 };
-const R = 3;
-const SHADOW = "0 2px 0 rgba(36,31,26,0.10)";
+const R = 16;
+const SHADOW = "0 4px 0 rgba(36,31,26,0.16), 0 10px 22px rgba(36,31,26,0.12)";
 // 書き取り用の手書きキャンバスのポインター。ブラウザ標準の cursor:"crosshair" は
 // 環境によって白っぽく表示され見えにくいことがあるため、黒い十字を自前のSVGで指定する。
 const BLACK_CROSSHAIR_CURSOR = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22"><line x1="11" y1="1" x2="11" y2="21" stroke="black" stroke-width="1.6"/><line x1="1" y1="11" x2="21" y2="11" stroke="black" stroke-width="1.6"/></svg>') 11 11, crosshair`;
@@ -464,7 +464,7 @@ function StarButton({ active, onClick, style }) {
 
 function TopBar({ title, onExit, progress }) {
   return (
-    <div className="flex items-center justify-between mb-6" style={{ borderBottom: `2px solid ${COLORS.ink}`, paddingBottom: 12 }}>
+    <div className="flex items-center justify-between mb-6" style={{ borderBottom: `3px solid ${COLORS.ink}`, paddingBottom: 12 }}>
       <button onClick={onExit} className="flex items-center gap-1 text-sm" style={{ color: COLORS.inkSoft, background: "transparent", border: "none", fontFamily: KLEE, cursor: "pointer" }}>
         <ArrowLeft size={16} /> 戻る
       </button>
@@ -477,15 +477,15 @@ function TopBar({ title, onExit, progress }) {
 function ResultCard({ score, total, onRestart, onExit }) {
   const pct = total ? Math.round((score / total) * 100) : 0;
   return (
-    <div className="p-10" style={{ background: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, boxShadow: SHADOW, borderRadius: R }}>
+    <div className="p-10" style={{ background: COLORS.surface, border: `3px solid ${COLORS.ink}`, boxShadow: SHADOW, borderRadius: R }}>
       <div style={{ fontFamily: KLEE, fontSize: 12, color: COLORS.vermilion, letterSpacing: "0.14em", marginBottom: 10, fontWeight: 600 }}>結果</div>
       <div style={{ fontFamily: KLEE, fontSize: 44, fontWeight: 600, color: COLORS.ink, marginBottom: 4 }}>{score} / {total}</div>
       <div style={{ color: COLORS.inkSoft, marginBottom: 26, fontFamily: KLEE, fontSize: 13 }}>正答率 {pct}%</div>
       <div className="flex items-center justify-center gap-3">
-        <button onClick={onRestart} className="flex items-center gap-1 px-5 py-2" style={{ border: `1.5px solid ${COLORS.ink}`, background: "transparent", color: COLORS.ink, fontFamily: KLEE, fontSize: 13, fontWeight: 600, borderRadius: R, cursor: "pointer" }}>
+        <button onClick={onRestart} className="flex items-center gap-1 px-5 py-2" style={{ border: `3px solid ${COLORS.ink}`, background: "transparent", color: COLORS.ink, fontFamily: KLEE, fontSize: 13, fontWeight: 600, borderRadius: R, cursor: "pointer" }}>
           <RefreshCw size={15} /> もう一度
         </button>
-        <button onClick={onExit} className="px-5 py-2" style={{ background: COLORS.ink, color: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, fontFamily: KLEE, fontSize: 13, fontWeight: 600, borderRadius: R, cursor: "pointer" }}>
+        <button onClick={onExit} className="px-5 py-2" style={{ background: COLORS.ink, color: COLORS.surface, border: `3px solid ${COLORS.ink}`, fontFamily: KLEE, fontSize: 13, fontWeight: 600, borderRadius: R, cursor: "pointer" }}>
           レベル選択へ戻る
         </button>
       </div>
@@ -509,7 +509,7 @@ function LevelSelect({ modeKey, fullList, favSet, idOf, minRequired, onSelect, o
           onClick={() => onSelect("FAV")}
           className="flex items-center justify-between px-6 py-4"
           style={{
-            background: COLORS.surface, border: `1.5px solid ${COLORS.star}`, borderRadius: R, boxShadow: SHADOW,
+            background: COLORS.surface, border: `3px solid ${COLORS.star}`, borderRadius: R, boxShadow: SHADOW,
             opacity: favCount < minRequired ? 0.4 : 1, cursor: favCount < minRequired ? "not-allowed" : "pointer",
           }}
         >
@@ -530,7 +530,7 @@ function LevelSelect({ modeKey, fullList, favSet, idOf, minRequired, onSelect, o
               onClick={() => onSelect(lv.key)}
               className="flex items-center justify-between px-6 py-4"
               style={{
-                background: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW,
+                background: COLORS.surface, border: `3px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW,
                 opacity: disabled ? 0.4 : 1, cursor: disabled ? "not-allowed" : "pointer",
               }}
             >
@@ -576,7 +576,7 @@ function SetSelect({ modeKey, level, fullList, setNameMap, onSelect, onExit }) {
                 key={n}
                 onClick={() => onSelect(n)}
                 className="flex items-center justify-between px-5 py-4"
-                style={{ background: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW, cursor: "pointer" }}
+                style={{ background: COLORS.surface, border: `3px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW, cursor: "pointer" }}
               >
                 <div style={{ fontFamily: KLEE, fontSize: 15, fontWeight: 600, color: COLORS.ink }}>
                   {n}{name ? <>. {renderAnnotatedText(name)}</> : ""}
@@ -634,7 +634,7 @@ function FlashcardMode({ vocab, level, langSlot, cardMode, favVocab, onToggleFav
         style={{
           background: `linear-gradient(${COLORS.hairline} 1px, transparent 1px) 0 0/100% 33.3%, linear-gradient(90deg, ${COLORS.hairline} 1px, transparent 1px) 0 0/33.3% 100%`,
           backgroundColor: COLORS.surface,
-          border: `1.5px solid ${COLORS.ink}`,
+          border: `3px solid ${COLORS.ink}`,
           minHeight: 260,
           borderRadius: R,
           boxShadow: SHADOW,
@@ -645,16 +645,16 @@ function FlashcardMode({ vocab, level, langSlot, cardMode, favVocab, onToggleFav
         {showing}
       </div>
       <div className="flex items-center justify-between mt-6 flex-wrap gap-2">
-        <button onClick={prev} className="flex items-center gap-1 px-4 py-2" style={{ border: `1.5px solid ${COLORS.ink}`, background: "transparent", color: COLORS.ink, borderRadius: R, fontFamily: KLEE, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+        <button onClick={prev} className="flex items-center gap-1 px-4 py-2" style={{ border: `3px solid ${COLORS.ink}`, background: "transparent", color: COLORS.ink, borderRadius: R, fontFamily: KLEE, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
           <ChevronLeft size={17} /> 前へ
         </button>
-        <button onClick={() => { setReversed((r) => !r); setFlipped(false); }} className="flex items-center gap-1 px-4 py-2" style={{ border: `1.5px solid ${COLORS.indigo}`, background: reversed ? COLORS.indigo : "transparent", color: reversed ? COLORS.surface : COLORS.indigo, borderRadius: R, fontFamily: KLEE, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+        <button onClick={() => { setReversed((r) => !r); setFlipped(false); }} className="flex items-center gap-1 px-4 py-2" style={{ border: `3px solid ${COLORS.indigo}`, background: reversed ? COLORS.indigo : "transparent", color: reversed ? COLORS.surface : COLORS.indigo, borderRadius: R, fontFamily: KLEE, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
           <Repeat size={16} /> 表裏を入れ替え
         </button>
-        <button onClick={doShuffle} className="flex items-center gap-1 px-4 py-2" style={{ border: `1.5px solid ${COLORS.ink}`, background: "transparent", color: COLORS.ink, borderRadius: R, fontFamily: KLEE, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+        <button onClick={doShuffle} className="flex items-center gap-1 px-4 py-2" style={{ border: `3px solid ${COLORS.ink}`, background: "transparent", color: COLORS.ink, borderRadius: R, fontFamily: KLEE, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
           <Shuffle size={16} /> シャッフル
         </button>
-        <button onClick={next} className="flex items-center gap-1 px-4 py-2" style={{ background: COLORS.ink, color: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, fontFamily: KLEE, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+        <button onClick={next} className="flex items-center gap-1 px-4 py-2" style={{ background: COLORS.ink, color: COLORS.surface, border: `3px solid ${COLORS.ink}`, borderRadius: R, fontFamily: KLEE, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
           次へ <ChevronRight size={17} />
         </button>
       </div>
@@ -706,21 +706,21 @@ function Vocab4Mode({ vocab, level, langSlot, favVocab, onToggleFav, onAnswer, o
     <div className="max-w-xl mx-auto">
       <TopBar title={title} onExit={onExit} progress={`${idx + 1} / ${questions.length}`} />
       <div className="flex justify-end mb-2">
-        <button onClick={doShuffle} className="flex items-center gap-1 px-3 py-1.5" style={{ border: `1.5px solid ${COLORS.ink}`, background: "transparent", color: COLORS.ink, borderRadius: R, fontFamily: KLEE, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+        <button onClick={doShuffle} className="flex items-center gap-1 px-3 py-1.5" style={{ border: `3px solid ${COLORS.ink}`, background: "transparent", color: COLORS.ink, borderRadius: R, fontFamily: KLEE, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
           <Shuffle size={14} /> シャッフル
         </button>
       </div>
-      <div className="p-8 mb-6 relative" style={{ background: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW }}>
+      <div className="p-8 mb-6 relative" style={{ background: COLORS.surface, border: `3px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW }}>
         <StarButton active={isFav} onClick={() => onToggleFav(current.answer)} style={{ position: "absolute", top: 8, right: 8 }} />
         <div style={{ fontSize: 11, color: COLORS.vermilion, marginBottom: 10, letterSpacing: "0.1em", fontWeight: 600, fontFamily: KLEE }}>この意味を表す単語は？</div>
         <div style={{ fontSize: autoFontSize(current.q, 21, 14, 20), color: COLORS.ink, fontWeight: 500, fontFamily: KLEE }}>{renderAnnotatedText(current.q)}</div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         {current.options.map((opt, i) => {
-          let style = { background: COLORS.surface, border: `1.5px solid ${COLORS.hairline}`, color: COLORS.ink };
+          let style = { background: COLORS.surface, border: `3px solid ${COLORS.hairline}`, color: COLORS.ink };
           if (selected) {
-            if (opt.word === current.answer) style = { background: COLORS.mossTint, border: `1.5px solid ${COLORS.moss}`, color: COLORS.moss };
-            else if (opt.word === selected) style = { background: COLORS.vermilionTint, border: `1.5px solid ${COLORS.vermilion}`, color: COLORS.vermilionDeep };
+            if (opt.word === current.answer) style = { background: COLORS.mossTint, border: `3px solid ${COLORS.moss}`, color: COLORS.moss };
+            else if (opt.word === selected) style = { background: COLORS.vermilionTint, border: `3px solid ${COLORS.vermilion}`, color: COLORS.vermilionDeep };
           }
           return (
             <button key={i} onClick={() => choose(opt)} className="flex items-center justify-between px-5 py-4 text-left" style={{ ...style, fontFamily: KLEE, fontSize: 20, fontWeight: 600, borderRadius: R, cursor: selected ? "default" : "pointer" }}>
@@ -733,7 +733,7 @@ function Vocab4Mode({ vocab, level, langSlot, favVocab, onToggleFav, onAnswer, o
       </div>
       {selected && (
         <div className="flex justify-end mt-6">
-          <button onClick={next} className="flex items-center gap-1 px-5 py-2" style={{ background: COLORS.ink, color: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, fontFamily: KLEE, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+          <button onClick={next} className="flex items-center gap-1 px-5 py-2" style={{ background: COLORS.ink, color: COLORS.surface, border: `3px solid ${COLORS.ink}`, borderRadius: R, fontFamily: KLEE, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
             次の問題 <ChevronRight size={17} />
           </button>
         </div>
@@ -786,7 +786,7 @@ function KanjiInputMode({ vocab, level, favVocab, onToggleFav, onAnswer, onExit 
     <div className="max-w-xl mx-auto">
       <TopBar title={title} onExit={onExit} progress={`${idx + 1} / ${questions.length}`} />
       <div className="flex justify-end mb-2">
-        <button onClick={doShuffle} className="flex items-center gap-1 px-3 py-1.5" style={{ border: `1.5px solid ${COLORS.ink}`, background: "transparent", color: COLORS.ink, borderRadius: R, fontFamily: KLEE, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+        <button onClick={doShuffle} className="flex items-center gap-1 px-3 py-1.5" style={{ border: `3px solid ${COLORS.ink}`, background: "transparent", color: COLORS.ink, borderRadius: R, fontFamily: KLEE, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
           <Shuffle size={14} /> シャッフル
         </button>
       </div>
@@ -795,7 +795,7 @@ function KanjiInputMode({ vocab, level, favVocab, onToggleFav, onAnswer, onExit 
         style={{
           background: `linear-gradient(${COLORS.hairline} 1px, transparent 1px) 0 0/100% 33.3%, linear-gradient(90deg, ${COLORS.hairline} 1px, transparent 1px) 0 0/33.3% 100%`,
           backgroundColor: COLORS.surface,
-          border: `1.5px solid ${COLORS.ink}`,
+          border: `3px solid ${COLORS.ink}`,
           borderRadius: R,
           boxShadow: SHADOW,
           minHeight: 220,
@@ -815,18 +815,18 @@ function KanjiInputMode({ vocab, level, favVocab, onToggleFav, onAnswer, onExit 
           onKeyDown={(e) => { if (e.key === "Enter") { checked ? next() : check(); } }}
           placeholder="ひらがなで入力"
           className="flex-1 px-4 py-3"
-          style={{ border: `1.5px solid ${COLORS.ink}`, fontSize: 18, fontFamily: KLEE, borderRadius: R, background: COLORS.surface, color: COLORS.ink, outline: "none" }}
+          style={{ border: `3px solid ${COLORS.ink}`, fontSize: 18, fontFamily: KLEE, borderRadius: R, background: COLORS.surface, color: COLORS.ink, outline: "none" }}
         />
         {!checked ? (
-          <button onClick={check} className="px-5 py-3" style={{ background: COLORS.ink, color: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, fontFamily: KLEE, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>答える</button>
+          <button onClick={check} className="px-5 py-3" style={{ background: COLORS.ink, color: COLORS.surface, border: `3px solid ${COLORS.ink}`, borderRadius: R, fontFamily: KLEE, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>答える</button>
         ) : (
-          <button onClick={next} className="px-5 py-3 flex items-center gap-1" style={{ background: COLORS.ink, color: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, fontFamily: KLEE, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
+          <button onClick={next} className="px-5 py-3 flex items-center gap-1" style={{ background: COLORS.ink, color: COLORS.surface, border: `3px solid ${COLORS.ink}`, borderRadius: R, fontFamily: KLEE, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
             次へ <ChevronRight size={17} />
           </button>
         )}
       </div>
       {checked && (
-        <div className="mt-4 px-5 py-4" style={{ background: correct ? COLORS.mossTint : COLORS.vermilionTint, color: correct ? COLORS.moss : COLORS.vermilionDeep, border: `1.5px solid ${correct ? COLORS.moss : COLORS.vermilion}`, borderRadius: R, fontFamily: KLEE, fontSize: 14 }}>
+        <div className="mt-4 px-5 py-4" style={{ background: correct ? COLORS.mossTint : COLORS.vermilionTint, color: correct ? COLORS.moss : COLORS.vermilionDeep, border: `3px solid ${correct ? COLORS.moss : COLORS.vermilion}`, borderRadius: R, fontFamily: KLEE, fontSize: 14 }}>
           {correct ? "正解です！" : `不正解です。正しい読み方: ${current.reading}`}
         </div>
       )}
@@ -871,15 +871,15 @@ function GrammarMode({ grammar, level, favGrammar, onToggleFav, onAnswer, onExit
     <div className="max-w-xl mx-auto">
       <TopBar title={title} onExit={onExit} progress={`${idx + 1} / ${questions.length}`} />
       <div className="flex justify-end mb-2">
-        <button onClick={doShuffle} className="flex items-center gap-1 px-3 py-1.5" style={{ border: `1.5px solid ${COLORS.ink}`, background: "transparent", color: COLORS.ink, borderRadius: R, fontFamily: KLEE, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+        <button onClick={doShuffle} className="flex items-center gap-1 px-3 py-1.5" style={{ border: `3px solid ${COLORS.ink}`, background: "transparent", color: COLORS.ink, borderRadius: R, fontFamily: KLEE, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
           <Shuffle size={14} /> シャッフル
         </button>
       </div>
-      <div className="p-8 mb-6 text-center relative" style={{ background: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW }}>
+      <div className="p-8 mb-6 text-center relative" style={{ background: COLORS.surface, border: `3px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW }}>
         <StarButton active={isFav} onClick={() => onToggleFav(current.blank)} style={{ position: "absolute", top: 8, right: 8 }} />
         <div style={{ fontSize: 20, lineHeight: 1.9, color: COLORS.ink, fontFamily: KLEE }}>
           {renderAnnotatedText(parts[0])}
-          <span style={{ display: "inline-block", minWidth: 48, borderBottom: `2px solid ${COLORS.vermilion}`, margin: "0 4px", color: COLORS.indigo, fontWeight: 600, fontFamily: KLEE }}>
+          <span style={{ display: "inline-block", minWidth: 48, borderBottom: `3px solid ${COLORS.vermilion}`, margin: "0 4px", color: COLORS.indigo, fontWeight: 600, fontFamily: KLEE }}>
             {selected !== null ? renderAnnotatedText(current.choices[selected]) : "　　"}
           </span>
           {renderAnnotatedText(parts[1])}
@@ -887,10 +887,10 @@ function GrammarMode({ grammar, level, favGrammar, onToggleFav, onAnswer, onExit
       </div>
       <div className="grid grid-cols-2 gap-3">
         {current.choices.map((c, i) => {
-          let style = { background: COLORS.surface, border: `1.5px solid ${COLORS.hairline}`, color: COLORS.ink };
+          let style = { background: COLORS.surface, border: `3px solid ${COLORS.hairline}`, color: COLORS.ink };
           if (selected !== null) {
-            if (i === current.answer) style = { background: COLORS.mossTint, border: `1.5px solid ${COLORS.moss}`, color: COLORS.moss };
-            else if (i === selected) style = { background: COLORS.vermilionTint, border: `1.5px solid ${COLORS.vermilion}`, color: COLORS.vermilionDeep };
+            if (i === current.answer) style = { background: COLORS.mossTint, border: `3px solid ${COLORS.moss}`, color: COLORS.moss };
+            else if (i === selected) style = { background: COLORS.vermilionTint, border: `3px solid ${COLORS.vermilion}`, color: COLORS.vermilionDeep };
           }
           return (
             <button key={i} onClick={() => choose(i)} className="px-5 py-4" style={{ ...style, fontFamily: KLEE, fontSize: 18, fontWeight: 600, borderRadius: R, cursor: selected !== null ? "default" : "pointer" }}>
@@ -901,7 +901,7 @@ function GrammarMode({ grammar, level, favGrammar, onToggleFav, onAnswer, onExit
       </div>
       {selected !== null && (
         <div className="flex justify-end mt-6">
-          <button onClick={next} className="flex items-center gap-1 px-5 py-2" style={{ background: COLORS.ink, color: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, fontFamily: KLEE, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+          <button onClick={next} className="flex items-center gap-1 px-5 py-2" style={{ background: COLORS.ink, color: COLORS.surface, border: `3px solid ${COLORS.ink}`, borderRadius: R, fontFamily: KLEE, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
             次の問題 <ChevronRight size={17} />
           </button>
         </div>
@@ -979,12 +979,12 @@ function KakitoriMode({ list, level, langSlot, favSet, onToggleFav, onAnswer, on
     <div className="max-w-xl mx-auto">
       <TopBar title={title} onExit={onExit} progress={`${idx + 1} / ${questions.length}`} />
       <div className="flex justify-end mb-1">
-        <button onClick={doShuffle} className="flex items-center gap-1 px-3 py-1.5" style={{ border: `1.5px solid ${COLORS.ink}`, background: "transparent", color: COLORS.ink, borderRadius: R, fontFamily: KLEE, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+        <button onClick={doShuffle} className="flex items-center gap-1 px-3 py-1.5" style={{ border: `3px solid ${COLORS.ink}`, background: "transparent", color: COLORS.ink, borderRadius: R, fontFamily: KLEE, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
           <Shuffle size={14} /> シャッフル
         </button>
       </div>
 
-      <div className="p-4 mb-3 text-center relative" style={{ background: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW }}>
+      <div className="p-4 mb-3 text-center relative" style={{ background: COLORS.surface, border: `3px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW }}>
         <StarButton active={isFav} onClick={() => onToggleFav(current.char)} style={{ position: "absolute", top: 8, right: 8 }} />
         <div style={{ fontSize: 11, color: COLORS.inkFaint, marginBottom: 8, letterSpacing: "0.08em", fontFamily: KLEE }}>次の意味・読み方を持つ漢字を書いてください</div>
         <div style={{ fontFamily: KLEE, fontSize: 22, color: COLORS.indigo, fontWeight: 600 }}>{current.reading}</div>
@@ -996,18 +996,18 @@ function KakitoriMode({ list, level, langSlot, favSet, onToggleFav, onAnswer, on
         style={{
           width: "100%", height: 180, display: "block",
           background: `linear-gradient(${COLORS.hairline} 1px, transparent 1px) 0 0/100% 33.3%, linear-gradient(90deg, ${COLORS.hairline} 1px, transparent 1px) 0 0/33.3% 100%, ${COLORS.surface}`,
-          border: `1.5px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW, touchAction: "none", cursor: BLACK_CROSSHAIR_CURSOR,
+          border: `3px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW, touchAction: "none", cursor: BLACK_CROSSHAIR_CURSOR,
         }}
       />
       <div className="flex gap-3 mt-2">
-        <button onClick={() => { clear(); setCandidates([]); setStatus(""); }} className="px-4 py-1.5" style={{ border: `1.5px solid ${COLORS.ink}`, background: "transparent", color: COLORS.ink, borderRadius: R, fontFamily: KLEE, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
+        <button onClick={() => { clear(); setCandidates([]); setStatus(""); }} className="px-4 py-1.5" style={{ border: `3px solid ${COLORS.ink}`, background: "transparent", color: COLORS.ink, borderRadius: R, fontFamily: KLEE, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
           消す
         </button>
         <button
           onClick={doRecognize}
           disabled={recognizing || !!picked}
           className="flex-1"
-          style={{ background: COLORS.ink, color: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, fontFamily: KLEE, fontWeight: 600, fontSize: 13, cursor: recognizing || picked ? "not-allowed" : "pointer", opacity: recognizing || picked ? 0.5 : 1 }}
+          style={{ background: COLORS.ink, color: COLORS.surface, border: `3px solid ${COLORS.ink}`, borderRadius: R, fontFamily: KLEE, fontWeight: 600, fontSize: 13, cursor: recognizing || picked ? "not-allowed" : "pointer", opacity: recognizing || picked ? 0.5 : 1 }}
         >
           認識する
         </button>
@@ -1022,10 +1022,10 @@ function KakitoriMode({ list, level, langSlot, favSet, onToggleFav, onAnswer, on
       {candidates.length > 0 && (
         <div className="grid grid-cols-4 gap-2 mt-2">
           {candidates.map((c, i) => {
-            let style = { background: COLORS.surface, border: `1.5px solid ${COLORS.hairline}`, color: COLORS.ink };
+            let style = { background: COLORS.surface, border: `3px solid ${COLORS.hairline}`, color: COLORS.ink };
             if (picked) {
-              if (c.char === current.char) style = { background: COLORS.mossTint, border: `1.5px solid ${COLORS.moss}`, color: COLORS.moss };
-              else if (c.char === picked) style = { background: COLORS.vermilionTint, border: `1.5px solid ${COLORS.vermilion}`, color: COLORS.vermilionDeep };
+              if (c.char === current.char) style = { background: COLORS.mossTint, border: `3px solid ${COLORS.moss}`, color: COLORS.moss };
+              else if (c.char === picked) style = { background: COLORS.vermilionTint, border: `3px solid ${COLORS.vermilion}`, color: COLORS.vermilionDeep };
             }
             return (
               <button key={i} onClick={() => choose(c.char)} className="flex flex-col items-center justify-center" style={{ ...style, height: 60, borderRadius: R, fontFamily: KLEE, cursor: picked ? "default" : "pointer" }}>
@@ -1040,10 +1040,10 @@ function KakitoriMode({ list, level, langSlot, favSet, onToggleFav, onAnswer, on
       {picked && (
         <div className="mt-2 px-5 py-3" style={
           picked === current.char
-            ? { background: COLORS.mossTint, color: COLORS.moss, border: `1.5px solid ${COLORS.moss}`, borderRadius: R, fontFamily: KLEE, fontSize: 14 }
+            ? { background: COLORS.mossTint, color: COLORS.moss, border: `3px solid ${COLORS.moss}`, borderRadius: R, fontFamily: KLEE, fontSize: 14 }
             : picked === "__SKIP__"
-              ? { background: COLORS.surface, color: COLORS.inkSoft, border: `1.5px solid ${COLORS.hairline}`, borderRadius: R, fontFamily: KLEE, fontSize: 14 }
-              : { background: COLORS.vermilionTint, color: COLORS.vermilionDeep, border: `1.5px solid ${COLORS.vermilion}`, borderRadius: R, fontFamily: KLEE, fontSize: 14 }
+              ? { background: COLORS.surface, color: COLORS.inkSoft, border: `3px solid ${COLORS.hairline}`, borderRadius: R, fontFamily: KLEE, fontSize: 14 }
+              : { background: COLORS.vermilionTint, color: COLORS.vermilionDeep, border: `3px solid ${COLORS.vermilion}`, borderRadius: R, fontFamily: KLEE, fontSize: 14 }
         }>
           {picked === current.char ? "正解です！" : picked === "__SKIP__" ? `スキップしました。正しい漢字：${current.char}` : `不正解です。正しい漢字: ${current.char}`}
         </div>
@@ -1051,7 +1051,7 @@ function KakitoriMode({ list, level, langSlot, favSet, onToggleFav, onAnswer, on
 
       {picked && (
         <div className="flex justify-end mt-3">
-          <button onClick={next} className="flex items-center gap-1 px-5 py-2" style={{ background: COLORS.ink, color: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, fontFamily: KLEE, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+          <button onClick={next} className="flex items-center gap-1 px-5 py-2" style={{ background: COLORS.ink, color: COLORS.surface, border: `3px solid ${COLORS.ink}`, borderRadius: R, fontFamily: KLEE, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
             次の問題 <ChevronRight size={17} />
           </button>
         </div>
@@ -1100,17 +1100,17 @@ function BlankChoiceQuizMode({ modeKey, list, level, favSet, onToggleFav, onAnsw
     <div className="max-w-xl mx-auto">
       <TopBar title={title} onExit={onExit} progress={`${idx + 1} / ${questions.length}`} />
       <div className="flex justify-end mb-2">
-        <button onClick={doShuffle} className="flex items-center gap-1 px-3 py-1.5" style={{ border: `1.5px solid ${COLORS.ink}`, background: "transparent", color: COLORS.ink, borderRadius: R, fontFamily: KLEE, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+        <button onClick={doShuffle} className="flex items-center gap-1 px-3 py-1.5" style={{ border: `3px solid ${COLORS.ink}`, background: "transparent", color: COLORS.ink, borderRadius: R, fontFamily: KLEE, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
           <Shuffle size={14} /> シャッフル
         </button>
       </div>
-      <div className="p-8 mb-6 text-center relative" style={{ background: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW }}>
+      <div className="p-8 mb-6 text-center relative" style={{ background: COLORS.surface, border: `3px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW }}>
         <StarButton active={isFav} onClick={() => onToggleFav(current.id || current.blank)} style={{ position: "absolute", top: 8, right: 8 }} />
         <div style={{ fontSize: 17, lineHeight: 1.9, color: COLORS.ink, fontFamily: KLEE }}>
           {hasBlank ? (
             <>
               {renderAnnotatedText(parts[0])}
-              <span style={{ display: "inline-block", minWidth: 48, borderBottom: `2px solid ${COLORS.vermilion}`, margin: "0 4px", color: COLORS.indigo, fontWeight: 600, fontFamily: KLEE }}>
+              <span style={{ display: "inline-block", minWidth: 48, borderBottom: `3px solid ${COLORS.vermilion}`, margin: "0 4px", color: COLORS.indigo, fontWeight: 600, fontFamily: KLEE }}>
                 {selected !== null ? renderAnnotatedText(current.choices[selected]) : "　　"}
               </span>
               {renderAnnotatedText(parts[1])}
@@ -1120,10 +1120,10 @@ function BlankChoiceQuizMode({ modeKey, list, level, favSet, onToggleFav, onAnsw
       </div>
       <div className="grid grid-cols-2 gap-3">
         {current.choices.map((c, i) => {
-          let style = { background: COLORS.surface, border: `1.5px solid ${COLORS.hairline}`, color: COLORS.ink };
+          let style = { background: COLORS.surface, border: `3px solid ${COLORS.hairline}`, color: COLORS.ink };
           if (selected !== null) {
-            if (i === current.answer) style = { background: COLORS.mossTint, border: `1.5px solid ${COLORS.moss}`, color: COLORS.moss };
-            else if (i === selected) style = { background: COLORS.vermilionTint, border: `1.5px solid ${COLORS.vermilion}`, color: COLORS.vermilionDeep };
+            if (i === current.answer) style = { background: COLORS.mossTint, border: `3px solid ${COLORS.moss}`, color: COLORS.moss };
+            else if (i === selected) style = { background: COLORS.vermilionTint, border: `3px solid ${COLORS.vermilion}`, color: COLORS.vermilionDeep };
           }
           return (
             <button key={i} onClick={() => choose(i)} className="px-5 py-4" style={{ ...style, fontFamily: KLEE, fontSize: 16, fontWeight: 600, borderRadius: R, cursor: selected !== null ? "default" : "pointer" }}>
@@ -1134,7 +1134,7 @@ function BlankChoiceQuizMode({ modeKey, list, level, favSet, onToggleFav, onAnsw
       </div>
       {selected !== null && (
         <div className="flex justify-end mt-6">
-          <button onClick={next} className="flex items-center gap-1 px-5 py-2" style={{ background: COLORS.ink, color: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, fontFamily: KLEE, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+          <button onClick={next} className="flex items-center gap-1 px-5 py-2" style={{ background: COLORS.ink, color: COLORS.surface, border: `3px solid ${COLORS.ink}`, borderRadius: R, fontFamily: KLEE, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
             次の問題 <ChevronRight size={17} />
           </button>
         </div>
@@ -1186,12 +1186,12 @@ function ReadingMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
     <div className="max-w-2xl mx-auto">
       <TopBar title={title} onExit={onExit} progress={`${idx + 1} / ${passages.length}`} />
       <div className="flex justify-end mb-2">
-        <button onClick={doShuffle} className="flex items-center gap-1 px-3 py-1.5" style={{ border: `1.5px solid ${COLORS.ink}`, background: "transparent", color: COLORS.ink, borderRadius: R, fontFamily: KLEE, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+        <button onClick={doShuffle} className="flex items-center gap-1 px-3 py-1.5" style={{ border: `3px solid ${COLORS.ink}`, background: "transparent", color: COLORS.ink, borderRadius: R, fontFamily: KLEE, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
           <Shuffle size={14} /> シャッフル
         </button>
       </div>
 
-      <div className="p-6 mb-4 relative" style={{ background: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW }}>
+      <div className="p-6 mb-4 relative" style={{ background: COLORS.surface, border: `3px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW }}>
         <StarButton active={isFav} onClick={() => onToggleFav(current.id || current.passage)} style={{ position: "absolute", top: 8, right: 8 }} />
         <div style={{ fontSize: 15, lineHeight: 2, color: COLORS.ink, fontFamily: KLEE, whiteSpace: "pre-wrap", paddingRight: 28 }}>{renderAnnotatedText(current.passage)}</div>
       </div>
@@ -1199,14 +1199,14 @@ function ReadingMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
       {current.questions.map((q, qi) => {
         const sel = answered[qi];
         return (
-          <div key={qi} className="p-5 mb-4" style={{ background: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW }}>
+          <div key={qi} className="p-5 mb-4" style={{ background: COLORS.surface, border: `3px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW }}>
             <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10, fontFamily: KLEE, color: COLORS.ink }}>問{qi + 1}. {renderAnnotatedText(q.question)}</div>
             <div className="grid grid-cols-1 gap-2">
               {q.choices.map((c, ci) => {
-                let style = { background: COLORS.bg, border: `1.5px solid ${COLORS.hairline}`, color: COLORS.ink };
+                let style = { background: COLORS.bg, border: `3px solid ${COLORS.hairline}`, color: COLORS.ink };
                 if (sel !== undefined) {
-                  if (ci === q.answer) style = { background: COLORS.mossTint, border: `1.5px solid ${COLORS.moss}`, color: COLORS.moss };
-                  else if (ci === sel) style = { background: COLORS.vermilionTint, border: `1.5px solid ${COLORS.vermilion}`, color: COLORS.vermilionDeep };
+                  if (ci === q.answer) style = { background: COLORS.mossTint, border: `3px solid ${COLORS.moss}`, color: COLORS.moss };
+                  else if (ci === sel) style = { background: COLORS.vermilionTint, border: `3px solid ${COLORS.vermilion}`, color: COLORS.vermilionDeep };
                 }
                 return (
                   <button key={ci} onClick={() => chooseSub(qi, ci)} className="px-4 py-3 text-left" style={{ ...style, borderRadius: R, fontFamily: KLEE, fontSize: 14, cursor: sel !== undefined ? "default" : "pointer" }}>
@@ -1221,7 +1221,7 @@ function ReadingMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
 
       {allAnswered && (
         <div className="flex justify-end mt-2 mb-6">
-          <button onClick={next} className="flex items-center gap-1 px-5 py-2" style={{ background: COLORS.ink, color: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, fontFamily: KLEE, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+          <button onClick={next} className="flex items-center gap-1 px-5 py-2" style={{ background: COLORS.ink, color: COLORS.surface, border: `3px solid ${COLORS.ink}`, borderRadius: R, fontFamily: KLEE, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
             次のパッセージ <ChevronRight size={17} />
           </button>
         </div>
@@ -1301,12 +1301,12 @@ function ReorderMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
     <div className="max-w-xl mx-auto">
       <TopBar title={title} onExit={onExit} progress={`${idx + 1} / ${questions.length}`} />
       <div className="flex justify-end mb-2">
-        <button onClick={doShuffle} className="flex items-center gap-1 px-3 py-1.5" style={{ border: `1.5px solid ${COLORS.ink}`, background: "transparent", color: COLORS.ink, borderRadius: R, fontFamily: KLEE, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+        <button onClick={doShuffle} className="flex items-center gap-1 px-3 py-1.5" style={{ border: `3px solid ${COLORS.ink}`, background: "transparent", color: COLORS.ink, borderRadius: R, fontFamily: KLEE, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
           <Shuffle size={14} /> シャッフル
         </button>
       </div>
 
-      <div className="p-6 mb-4 text-center relative" style={{ background: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW }}>
+      <div className="p-6 mb-4 text-center relative" style={{ background: COLORS.surface, border: `3px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW }}>
         <StarButton active={isFav} onClick={() => onToggleFav(current.id || current.blank)} style={{ position: "absolute", top: 8, right: 8 }} />
         <div style={{ fontSize: 18, lineHeight: 1.9, color: COLORS.ink, fontFamily: KLEE }}>
           {renderAnnotatedText(current.blank)}
@@ -1317,7 +1317,7 @@ function ReorderMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
         正しい順番になるように、下のカードをタップ（またはドラッグ）して並べてください
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-4 p-3" style={{ minHeight: 56, border: `1.5px dashed ${COLORS.inkFaint}`, borderRadius: R, background: COLORS.bg }}>
+      <div className="flex flex-wrap gap-2 mb-4 p-3" style={{ minHeight: 56, border: `2.5px dashed ${COLORS.inkFaint}`, borderRadius: R, background: COLORS.bg }}>
         {slots.map((s, i) => {
           let borderColor = s ? COLORS.ink : COLORS.hairline;
           let color = COLORS.ink;
@@ -1332,7 +1332,7 @@ function ReorderMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
               onDragStart={(e) => s && onDragStartCard(e, s)}
               style={{
                 minWidth: 56, minHeight: 40, padding: "8px 12px", display: "flex", alignItems: "center", justifyContent: "center",
-                background: s ? COLORS.surface : "transparent", border: `1.5px solid ${borderColor}`, color,
+                background: s ? COLORS.surface : "transparent", border: `3px solid ${borderColor}`, color,
                 borderRadius: R, fontFamily: KLEE, fontSize: 15, fontWeight: 600, cursor: s && !checked ? "pointer" : "default",
               }}
             >
@@ -1351,7 +1351,7 @@ function ReorderMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
             onClick={() => placeCard(c)}
             disabled={checked}
             className="px-4 py-2"
-            style={{ border: `1.5px solid ${COLORS.ink}`, background: COLORS.surface, color: COLORS.ink, borderRadius: R, fontFamily: KLEE, fontSize: 15, fontWeight: 600, cursor: checked ? "not-allowed" : "pointer" }}
+            style={{ border: `3px solid ${COLORS.ink}`, background: COLORS.surface, color: COLORS.ink, borderRadius: R, fontFamily: KLEE, fontSize: 15, fontWeight: 600, cursor: checked ? "not-allowed" : "pointer" }}
           >
             {renderAnnotatedText(c.word)}
           </button>
@@ -1360,7 +1360,7 @@ function ReorderMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
 
       {!checked ? (
         <div className="flex justify-end">
-          <button onClick={check} disabled={!allFilled} className="px-5 py-3" style={{ background: COLORS.ink, color: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, fontFamily: KLEE, fontWeight: 600, fontSize: 13, cursor: allFilled ? "pointer" : "not-allowed", opacity: allFilled ? 1 : 0.5 }}>
+          <button onClick={check} disabled={!allFilled} className="px-5 py-3" style={{ background: COLORS.ink, color: COLORS.surface, border: `3px solid ${COLORS.ink}`, borderRadius: R, fontFamily: KLEE, fontWeight: 600, fontSize: 13, cursor: allFilled ? "pointer" : "not-allowed", opacity: allFilled ? 1 : 0.5 }}>
             答える
           </button>
         </div>
@@ -1369,13 +1369,13 @@ function ReorderMode({ list, level, favSet, onToggleFav, onAnswer, onExit }) {
           <div className="mt-2 px-5 py-4" style={{
             background: isAllCorrect ? COLORS.mossTint : COLORS.vermilionTint,
             color: isAllCorrect ? COLORS.moss : COLORS.vermilionDeep,
-            border: `1.5px solid ${isAllCorrect ? COLORS.moss : COLORS.vermilion}`,
+            border: `3px solid ${isAllCorrect ? COLORS.moss : COLORS.vermilion}`,
             borderRadius: R, fontFamily: KLEE, fontSize: 14,
           }}>
             {isAllCorrect ? "正解です！" : `不正解です。正しい順番：${current.cards.join(" / ")}`}
           </div>
           <div className="flex justify-end mt-6">
-            <button onClick={next} className="flex items-center gap-1 px-5 py-2" style={{ background: COLORS.ink, color: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, fontFamily: KLEE, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            <button onClick={next} className="flex items-center gap-1 px-5 py-2" style={{ background: COLORS.ink, color: COLORS.surface, border: `3px solid ${COLORS.ink}`, borderRadius: R, fontFamily: KLEE, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
               次の問題 <ChevronRight size={17} />
             </button>
           </div>
@@ -1424,14 +1424,14 @@ function ImportPanel({ onImport, onExit }) {
   return (
     <div className="max-w-2xl mx-auto">
       <TopBar title="CSVインポート" onExit={onExit} />
-      <div className="p-6 mb-4" style={{ background: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW }}>
+      <div className="p-6 mb-4" style={{ background: COLORS.surface, border: `3px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW }}>
         <div className="flex items-center justify-between mb-4 gap-3">
           <div style={{ fontSize: 13, color: COLORS.inkSoft, fontFamily: KLEE }}>ExcelからCSV形式で保存したファイルを選択するか、内容を貼り付けてください</div>
-          <button onClick={downloadTemplate} className="flex items-center gap-1 text-sm px-3 py-2" style={{ border: `1.5px solid ${COLORS.ink}`, background: "transparent", color: COLORS.ink, whiteSpace: "nowrap", borderRadius: R, fontFamily: KLEE, fontWeight: 600, cursor: "pointer" }}>
+          <button onClick={downloadTemplate} className="flex items-center gap-1 text-sm px-3 py-2" style={{ border: `3px solid ${COLORS.ink}`, background: "transparent", color: COLORS.ink, whiteSpace: "nowrap", borderRadius: R, fontFamily: KLEE, fontWeight: 600, cursor: "pointer" }}>
             <Download size={14} /> テンプレート
           </button>
         </div>
-        <label className="flex items-center gap-2 px-4 py-3 mb-4 cursor-pointer" style={{ border: `1.5px dashed ${COLORS.inkFaint}`, color: COLORS.inkSoft, borderRadius: R, fontFamily: KLEE, fontSize: 13 }}>
+        <label className="flex items-center gap-2 px-4 py-3 mb-4 cursor-pointer" style={{ border: `2.5px dashed ${COLORS.inkFaint}`, color: COLORS.inkSoft, borderRadius: R, fontFamily: KLEE, fontSize: 13 }}>
           <Upload size={16} /> {fileName || "CSVファイルを選択"}
           <input ref={fileRef} type="file" accept=".csv,text/csv" onChange={handleFile} className="hidden" />
         </label>
@@ -1441,11 +1441,11 @@ function ImportPanel({ onImport, onExit }) {
           placeholder={"type,level,word,reading,meaning,meaning_en,example,blank,choice1,choice2,choice3,choice4,answer\nvocab,N4,食事,しょくじ,食べること,meal,家族と食事をします。,,,,,,"}
           rows={8}
           className="w-full px-4 py-3"
-          style={{ border: `1.5px solid ${COLORS.hairline}`, fontSize: 13, fontFamily: "monospace", borderRadius: R, background: COLORS.bg, color: COLORS.ink }}
+          style={{ border: `3px solid ${COLORS.hairline}`, fontSize: 13, fontFamily: "monospace", borderRadius: R, background: COLORS.bg, color: COLORS.ink }}
         />
-        {error && <div className="mt-3 px-4 py-3" style={{ background: COLORS.vermilionTint, color: COLORS.vermilionDeep, fontSize: 13, borderRadius: R, border: `1.5px solid ${COLORS.vermilion}`, fontFamily: KLEE }}>{error}</div>}
+        {error && <div className="mt-3 px-4 py-3" style={{ background: COLORS.vermilionTint, color: COLORS.vermilionDeep, fontSize: 13, borderRadius: R, border: `3px solid ${COLORS.vermilion}`, fontFamily: KLEE }}>{error}</div>}
         <div className="flex justify-end mt-4">
-          <button onClick={doImport} className="px-5 py-2" style={{ background: COLORS.ink, color: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, fontFamily: KLEE, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>取り込む</button>
+          <button onClick={doImport} className="px-5 py-2" style={{ background: COLORS.ink, color: COLORS.surface, border: `3px solid ${COLORS.ink}`, borderRadius: R, fontFamily: KLEE, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>取り込む</button>
         </div>
       </div>
       <div style={{ fontSize: 12, color: COLORS.inkSoft, lineHeight: 1.8, fontFamily: KLEE }}>
@@ -1811,7 +1811,7 @@ export default function App({
   const activeReorder = bySet(levelReorder);
 
   return (
-    <div style={{ background: COLORS.bg, minHeight: 500, fontFamily: SANS, color: COLORS.ink }} className="w-full p-6 kotoba-dojo-root">
+    <div style={{ background: COLORS.bg, minHeight: 500, fontFamily: SANS, color: COLORS.ink }} className="w-full p-6 kotoba-dojo-root pop-page">
       <style>{FONT_IMPORT}</style>
       <style>{DESKTOP_SCALE_CSS}</style>
 
@@ -1820,7 +1820,7 @@ export default function App({
           <span>{studentName ? `${studentName} さん` : ""}</span>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             {screen !== "home" && (
-              <button onClick={backToHome} className="flex items-center gap-1.5" style={{ color: COLORS.ink, background: "transparent", border: `1.5px solid ${COLORS.ink}`, borderRadius: R, padding: "7px 14px", fontFamily: SANS, fontSize: 13, fontWeight: 700, lineHeight: 1.2, cursor: "pointer" }}>
+              <button onClick={backToHome} className="flex items-center gap-1.5" style={{ color: COLORS.ink, background: "transparent", border: `3px solid ${COLORS.ink}`, borderRadius: R, padding: "7px 14px", fontFamily: SANS, fontSize: 13, fontWeight: 700, lineHeight: 1.2, cursor: "pointer" }}>
                 <Home size={18} />
                 <span>ホームに戻る</span>
               </button>
@@ -1832,14 +1832,14 @@ export default function App({
               <button
                 onClick={async () => { await flushSessionRef.current(); router.push(myPageHref); }}
                 className="flex items-center gap-1.5"
-                style={{ color: COLORS.surface, background: COLORS.indigo, border: `1.5px solid ${COLORS.indigo}`, borderRadius: R, padding: "7px 14px", textDecoration: "none", fontFamily: SANS, fontSize: 13, fontWeight: 700, lineHeight: 1.2, cursor: "pointer" }}
+                style={{ color: COLORS.surface, background: COLORS.indigo, border: `3px solid ${COLORS.indigo}`, borderRadius: R, padding: "7px 14px", textDecoration: "none", fontFamily: SANS, fontSize: 13, fontWeight: 700, lineHeight: 1.2, cursor: "pointer" }}
               >
                 <UserCircle size={18} />
                 <span>マイアカウント <span style={{ fontWeight: 500, opacity: 0.85 }}>/ My Page</span></span>
               </button>
             )}
             {onLogout && (
-              <button onClick={onLogout} style={{ color: COLORS.surface, background: COLORS.vermilionDeep, border: `1.5px solid ${COLORS.vermilionDeep}`, borderRadius: R, padding: "7px 14px", cursor: "pointer", fontFamily: SANS, fontSize: 13, fontWeight: 700, lineHeight: 1.2 }}>
+              <button onClick={onLogout} style={{ color: COLORS.surface, background: COLORS.vermilionDeep, border: `3px solid ${COLORS.vermilionDeep}`, borderRadius: R, padding: "7px 14px", cursor: "pointer", fontFamily: SANS, fontSize: 13, fontWeight: 700, lineHeight: 1.2 }}>
                 ログアウト
               </button>
             )}
@@ -1848,7 +1848,7 @@ export default function App({
       )}
 
       {toast && (
-        <div className="max-w-xl mx-auto mb-4 px-4 py-3 text-center" style={{ background: COLORS.mossTint, color: COLORS.moss, fontSize: 13, border: `1.5px solid ${COLORS.moss}`, borderRadius: R, fontFamily: KLEE }}>
+        <div className="max-w-xl mx-auto mb-4 px-4 py-3 text-center" style={{ background: COLORS.mossTint, color: COLORS.moss, fontSize: 13, border: `3px solid ${COLORS.moss}`, borderRadius: R, fontFamily: KLEE }}>
           {toast}
         </div>
       )}
@@ -1859,7 +1859,7 @@ export default function App({
             <button
               onClick={async () => { await flushSessionRef.current(); router.push(kotodamaHref); }}
               className="flex items-center justify-center gap-3 w-full mb-5 px-4 py-3"
-              style={{ background: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW, cursor: "pointer" }}
+              style={{ background: COLORS.surface, border: `3px solid ${COLORS.ink}`, borderRadius: R, boxShadow: SHADOW, cursor: "pointer" }}
             >
               <div style={{ width: 56, height: 56, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
                 dangerouslySetInnerHTML={{ __html: buildCreatureSVG(kotodamaStage).replace('width="190" height="210"', 'width="56" height="56"') }} />
@@ -1869,7 +1869,7 @@ export default function App({
               </div>
             </button>
           )}
-          <div className="text-center mb-8" style={{ borderBottom: `2px solid ${COLORS.ink}`, paddingBottom: 20 }}>
+          <div className="text-center mb-8" style={{ borderBottom: `3px solid ${COLORS.ink}`, paddingBottom: 20 }}>
             <div style={{ fontFamily: SERIF, fontSize: 34, color: COLORS.ink, fontWeight: 800, letterSpacing: "0.03em" }}>
               ことば<span style={{ color: COLORS.vermilion }}>の道場</span>
             </div>
@@ -1878,7 +1878,7 @@ export default function App({
 
             <div className="flex items-center justify-center gap-2 mt-4 flex-wrap">
               <span style={{ fontFamily: SANS, fontSize: 12, color: COLORS.inkFaint }}>意味の表示言語:</span>
-              <div className="flex flex-wrap" style={{ border: `1.5px solid ${COLORS.ink}`, borderRadius: R, overflow: "hidden" }}>
+              <div className="flex flex-wrap" style={{ border: `3px solid ${COLORS.ink}`, borderRadius: R, overflow: "hidden" }}>
                 {effectiveLanguageOptions.map((opt) => (
                   <button
                     key={opt.slot}
@@ -1903,7 +1903,7 @@ export default function App({
                   className="text-left p-5 flex flex-col gap-3"
                   style={{
                     background: COLORS.surface,
-                    border: `1.5px solid ${COLORS.ink}`,
+                    border: `3px solid ${COLORS.ink}`,
                     opacity: m.disabled ? 0.4 : 1,
                     cursor: m.disabled ? "not-allowed" : "pointer",
                     borderRadius: R,
@@ -1923,10 +1923,10 @@ export default function App({
 
           {allowLocalImport && (
             <div className="flex flex-wrap items-center justify-center gap-3">
-              <button onClick={() => setScreen("import")} className="flex items-center gap-1 px-4 py-2" style={{ background: COLORS.ink, color: COLORS.surface, border: `1.5px solid ${COLORS.ink}`, borderRadius: R, fontFamily: SANS, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+              <button onClick={() => setScreen("import")} className="flex items-center gap-1 px-4 py-2" style={{ background: COLORS.ink, color: COLORS.surface, border: `3px solid ${COLORS.ink}`, borderRadius: R, fontFamily: SANS, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
                 <FileText size={16} /> CSVから問題を取り込む
               </button>
-              <button onClick={resetSample} className="flex items-center gap-1 px-4 py-2" style={{ border: `1.5px solid ${COLORS.ink}`, background: "transparent", color: COLORS.inkSoft, borderRadius: R, fontFamily: SANS, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+              <button onClick={resetSample} className="flex items-center gap-1 px-4 py-2" style={{ border: `3px solid ${COLORS.ink}`, background: "transparent", color: COLORS.inkSoft, borderRadius: R, fontFamily: SANS, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
                 <RotateCcw size={16} /> サンプルに戻す
               </button>
             </div>
