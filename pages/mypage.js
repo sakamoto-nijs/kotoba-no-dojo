@@ -7,8 +7,8 @@ import {
   REVIEW_COUNT_DEFINITION, buildStats, buildSectionBreakdown, formatDuration, formatDateTime,
 } from "../lib/statsHelpers";
 
-const R = "3px";
-const SHADOW = "0 2px 0 rgba(36,31,26,0.10)";
+const R = "16px";
+const SHADOW = "0 4px 0 rgba(36,31,26,0.16), 0 10px 22px rgba(36,31,26,0.12)";
 const KLEE = "'Klee One', sans-serif";
 
 function pct(correct, total) { return total ? Math.round((correct / total) * 100) : null; }
@@ -20,10 +20,10 @@ function sectionLabel(setNameMap, mode, level, setNo) {
 
 function SectionBreakdown({ mode, level, rows, setNameMap, onClose }) {
   return (
-    <div style={{ background: "var(--bg)", border: "1.5px solid var(--indigo)", borderRadius: R, padding: 16, marginBottom: 20 }}>
+    <div style={{ background: "var(--bg)", border: "3px solid var(--indigo)", borderRadius: R, padding: 16, marginBottom: 20 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "var(--indigo)" }}>{MODE_LABELS[mode]} － {level} のセクション別内訳</div>
-        <button onClick={onClose} style={{ background: "none", border: "1.5px solid var(--ink-soft)", borderRadius: R, padding: "3px 10px", cursor: "pointer", fontSize: 11 }}>閉じる</button>
+        <button onClick={onClose} style={{ background: "none", border: "3px solid var(--ink-soft)", borderRadius: R, padding: "3px 10px", cursor: "pointer", fontSize: 11 }}>閉じる</button>
       </div>
       {rows.length === 0 ? (
         <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>データがありません。</div>
@@ -38,7 +38,7 @@ function SectionBreakdown({ mode, level, rows, setNameMap, onClose }) {
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.setNo} style={{ borderTop: "1px solid var(--hairline)" }}>
+              <tr key={r.setNo} style={{ borderTop: "2px solid var(--hairline)" }}>
                 <td style={td}>{sectionLabel(setNameMap, mode, level, r.setNo)}</td>
                 <td style={td}>{r.total ? `${pct(r.correct, r.total)}%（${r.total}問）` : "-"}</td>
                 <td style={td}>{r.attempts ? `${r.attempts}回` : "-"}</td>
@@ -105,14 +105,14 @@ export default function MyPage() {
     : null;
 
   return (
-    <div style={{ minHeight: "100vh", padding: 24, fontFamily: KLEE }}>
+    <div className="pop-page" style={{ minHeight: "100vh", padding: 24, fontFamily: KLEE }}>
       <div style={{ maxWidth: 720, margin: "0 auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid var(--ink)", paddingBottom: 16, marginBottom: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "3px solid var(--ink)", paddingBottom: 16, marginBottom: 24 }}>
           <div style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 22, fontWeight: 800 }}>マイアカウント</div>
           <a href="/app" style={{ fontSize: 13, color: "var(--ink-soft)" }}>← 学習に戻る</a>
         </div>
 
-        <div style={{ background: "var(--surface)", border: "1.5px solid var(--ink)", borderRadius: R, boxShadow: SHADOW, padding: 20, marginBottom: 20 }}>
+        <div style={{ background: "var(--surface)", border: "3px solid var(--ink)", borderRadius: R, boxShadow: SHADOW, padding: 20, marginBottom: 20 }}>
           <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>登録情報</div>
           <div style={{ fontSize: 13, lineHeight: 2 }}>
             <div>氏名：{profile.display_name}</div>
@@ -123,7 +123,7 @@ export default function MyPage() {
           </div>
         </div>
 
-        <div style={{ background: "var(--surface)", border: "1.5px solid var(--ink)", borderRadius: R, boxShadow: SHADOW, padding: 20, marginBottom: 20 }}>
+        <div style={{ background: "var(--surface)", border: "3px solid var(--ink)", borderRadius: R, boxShadow: SHADOW, padding: 20, marginBottom: 20 }}>
           <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>学習状況（全体）</div>
           <div style={{ display: "flex", gap: 20, flexWrap: "wrap", fontSize: 13 }}>
             <div>総学習回数：<b>{stats.totalReviews}</b></div>
@@ -137,7 +137,7 @@ export default function MyPage() {
           <SectionBreakdown mode={expanded.mode} level={expanded.level} rows={sectionRows} setNameMap={setNameMap} onClose={() => setExpanded(null)} />
         )}
 
-        <div style={{ background: "var(--surface)", border: "1.5px solid var(--ink)", borderRadius: R, boxShadow: SHADOW, padding: 20, marginBottom: 20, overflow: "auto" }}>
+        <div style={{ background: "var(--surface)", border: "3px solid var(--ink)", borderRadius: R, boxShadow: SHADOW, padding: 20, marginBottom: 20, overflow: "auto" }}>
           <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>正答率（③〜⑩・レベル別）</div>
           <div style={{ fontSize: 11, color: "var(--ink-faint)", marginBottom: 8 }}>数字をタップすると、問題セット（セクション）ごとの内訳が見られます。</div>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
@@ -149,7 +149,7 @@ export default function MyPage() {
             </thead>
             <tbody>
               {LEVEL_KEYS.map((lv) => (
-                <tr key={lv} style={{ borderTop: "1px solid var(--hairline)" }}>
+                <tr key={lv} style={{ borderTop: "2px solid var(--hairline)" }}>
                   <td style={td}>{lv}</td>
                   {QUIZ_MODES.map((m) => {
                     const c = stats.byModeLevel[m][lv];
@@ -176,7 +176,7 @@ export default function MyPage() {
           </table>
         </div>
 
-        <div style={{ background: "var(--surface)", border: "1.5px solid var(--ink)", borderRadius: R, boxShadow: SHADOW, padding: 20, overflow: "auto" }}>
+        <div style={{ background: "var(--surface)", border: "3px solid var(--ink)", borderRadius: R, boxShadow: SHADOW, padding: 20, overflow: "auto" }}>
           <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>フラッシュカード（①②・レベル別の学習回数と学習時間）</div>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
             <thead>
@@ -187,7 +187,7 @@ export default function MyPage() {
             </thead>
             <tbody>
               {LEVEL_KEYS.map((lv) => (
-                <tr key={lv} style={{ borderTop: "1px solid var(--hairline)" }}>
+                <tr key={lv} style={{ borderTop: "2px solid var(--hairline)" }}>
                   <td style={td}>{lv}</td>
                   {FLASHCARD_MODES.map((m) => {
                     const c = stats.byModeLevel[m][lv];
